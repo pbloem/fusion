@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools >= 64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fusion"
+version = "0.0.1"
+dependencies = [
+        "numpy<2",
+        "matplotlib",
+        'tqdm',
+        'fire',
+        'torch',
+        'torchvision'
+]
+requires-python = ">=3.10"
+authors = [
+  {name = "Peter Bloem", email = "fusion@peterbloem.nl"},
+]
+maintainers = [
+  {name = "Peter Bloem", email = "fusion@peterbloem.nl"},
+]
+description = "Impelementations of several diffusion models."
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+keywords = ["diffusion", "ai", "deep learning"]
+classifiers = [
+  "Programming Language :: Python"
+]
+
+[project.urls]
+Homepage = "https://gestalt.ink/diffusion"
+Repository = "https://github.com/pbloem/fusion.git"
