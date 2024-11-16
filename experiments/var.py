@@ -121,7 +121,6 @@ def train(
 
             loss.backward()
             opt.step()
-            opt.zero_grad()
 
             if wandb:
                 wandb.log({
@@ -131,6 +130,8 @@ def train(
                 })
 
             bar.set_postfix({'loss' : loss.item()})
+            opt.zero_grad()
+
 
         # # Sample
         unet.eval()
