@@ -28,6 +28,8 @@ from tqdm import trange
 import importlib.util
 import sys
 
+import wandb
+
 def train(
         epochs=5,
         steps=120,
@@ -48,11 +50,21 @@ def train(
         eval_steps=20,
         dres=8,             # resolution of the tiles in the degradation
         beta=1.0,
+        name='vcd',
 ):
 
     """
     Variational cold diffusion
     """
+
+    if wandb is not None:
+        wd = wandb.init(
+            name = name,
+            project = 'vcd',
+            tags = [],
+            config =locals(),
+            mode = 'disabled' if debug else 'online'
+        )
 
     h, w = size
 
@@ -109,6 +121,13 @@ def train(
             loss.backward()
             opt.step()
             opt.zero_grad()
+
+            if wandb:
+                wandb.log({
+                    'loss': loss.item(),
+                    'kl_loss': sum(kls).mean().item(),
+                    'gradient_norm': gradient_norm(unet),
+                })
 
             bar.set_postfix({'loss' : loss.item()})
 
