@@ -51,6 +51,7 @@ def train(
         dres=8,             # resolution of the tiles in the degradation
         beta=1.0,
         name='vcd',
+        debug=False,
 ):
 
     """
