@@ -43,7 +43,6 @@ def packdir(subpath=None):
 
 def here(file, subpath=None):
     """
-
     The path in which the given file resides, or a path relative to it if subpath is provided.
 
     Call with here(__file__) to get a path relative to the current executing code.
@@ -53,7 +52,6 @@ def here(file, subpath=None):
         return os.path.abspath(os.path.join(os.path.dirname(file)))
 
     return os.path.abspath(os.path.join(os.path.dirname(file), subpath))
-
 
 def gradient_norm(model):
     total_norm = 0.0
@@ -184,3 +182,35 @@ def fc(var, name=None):
         raise Exception(f'Unknown value {var} for variable with name {name}.')
     raise Exception(f'Unknown value {var}.')
 
+def kl_loss(zmean, zsig):
+    """
+    Compute the KL loss between the given diagonal Gaussian and the standard Gaussian
+
+    :param zmean:
+    :param zsig: The log of the variance
+    :return:
+    """
+    b = zmean.size(0)
+
+    kl = 0.5 * (zsig.exp() - zsig + zmean.pow(2) - 1)
+    kl = kl.reshape(b, -1).sum(dim=1)
+
+    assert kl.size() == (b,)
+
+    return kl
+
+def sample(zmean, zsig):
+    """
+    Sample from the given diagonal Gaussian
+
+    :param zmean:
+    :param zsig:
+    :return:
+    """
+    assert zmean.size() == zsig.size()
+
+    # sample epsilon from a standard normal distribution
+    eps = torch.randn_like(zmean)
+
+    # transform eps to a sample from the given distribution
+    return zmean + eps * (zsig * 0.5).exp()
