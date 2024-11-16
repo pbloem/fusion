@@ -143,7 +143,7 @@ def train(
             n = 0
             for t in (1 - torch.arange(delta, 1, 1/20)):
 
-                texp = t.expand((ims.size(0),))
+                texp = t.expand((ims.size(0),)).to(d())
                 ims = unet(x1=ims, x0=None, t0=texp-delta, t1=texp).sigmoid()
 
                 n += 1
