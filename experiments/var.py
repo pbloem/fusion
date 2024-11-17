@@ -51,6 +51,7 @@ def train(
         beta=1.0,
         name='vcd',
         debug=False,
+        time_emb=512,
 ):
 
     """
@@ -75,7 +76,7 @@ def train(
     print(f'data loaded ({toc():.4} s)')
 
     unet = fusion.VCUNet(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level,
-                         mid_layers=3, time_emb=64)
+                         mid_layers=3, time_emb=time_emb)
 
     if torch.cuda.is_available():
         unet = unet.cuda()
