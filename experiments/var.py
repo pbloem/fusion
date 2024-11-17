@@ -102,21 +102,37 @@ def train(
             b, c, h, w = btch.size()
 
             # Corruption times
+
             # -- pick three random points in (0, 1) and sort them
-            t = torch.rand(size=(b, 3), device=d())
-            torch.sort(t, dim=1)[0]
+            # t = torch.rand(size=(b, 3), device=d())
+            # torch.sort(t, dim=1)[0]
+            # this is biased
+
+            with torch.no_grad():
+                # pick t0 uniform over (0, 1)
+                t = torch.rand(size=(b, 3), device=d())
+
+                # t1 is uniform over the range between t0 and 1
+                t[:, 1] = t[:, 1] * (1 - t[:, 0]) + t[:, 0]
+
+                #t2 is uniform over the range between t1 and 1
+                t[:, 2] = t[:, 2] * (1 - t[:, 1]) + t[:, 1]
 
             xs = [batch(btch, op=tile, t=t[:, i], nh=dres, nw=dres) for i in range(3)]
 
             # Sample one step to augment the data (t2 -> t1)
             with torch.no_grad():
-                x1p = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1]).sigmoid()
+                diff = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1]) #.sigmoid()
+                x1p = xs[2] + diff
+                # x1p = xs[1]
 
             # Predict x0 from x1p (t1 -> t0)
             output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0])
-            output = output.sigmoid()
+            # output = output.sigmoid()
 
-            rc_loss = ((output - xs[0]) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
+            diff = xs[0] - xs[1] # predict the delta between x0 and x1
+            rc_loss = ((output - diff) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
+
             loss = (rc_loss + beta * sum(kls)).mean()
 
             loss.backward()
@@ -134,7 +150,7 @@ def train(
 
 
         # # Sample
-        print('Generating sample.')
+        print('Generating sample, epoch', e)
         unet.eval()
         with torch.no_grad():
 
@@ -146,7 +162,8 @@ def train(
             for t in (1 - torch.arange(delta, 1, 1/20)):
 
                 texp = t.expand((ims.size(0),)).to(d())
-                ims = unet(x1=ims, x0=None, t0=texp-delta, t1=texp).sigmoid()
+                diff = unet(x1=ims, x0=None, t0=texp-delta, t1=texp) #.sigmoid()
+                ims = ims + diff
 
                 n += 1
                 if n % plot_every == 0:
