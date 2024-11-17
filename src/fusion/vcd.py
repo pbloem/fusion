@@ -229,7 +229,7 @@ class VCUNet(nn.Module):
 
                 if x0 is None:
                     b, _ , height, width = h.size()
-                    z = torch.randn(size=(b, 1, height, width)) # sample from the standard Gaussian
+                    z = torch.randn(size=(b, 1, height, width), device=d()) # sample from the standard Gaussian
                 else:
                     z = zs.pop() # The latent from the VC encoder branch
 
