@@ -53,6 +53,7 @@ def train(
         debug=False,
         time_emb=512,
         sample_mix = 1.0, # how much of the batch to augment
+        p = 1.0, # exponent for sampling the time offsets. >1.0 makes time values near the target value more likely
 ):
 
     """
@@ -112,6 +113,7 @@ def train(
             with torch.no_grad():
                 # pick t0 uniform over (0, 1)
                 t = torch.rand(size=(b, 3), device=d())
+                t[:, 1:] **= p # adjust to make nearby points more likely
 
                 # t1 is uniform over the range between t0 and 1
                 t[:, 1] = t[:, 1] * (1 - t[:, 0]) + t[:, 0]
