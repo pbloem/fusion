@@ -15,7 +15,7 @@ class ResBlock(nn.Module):
 
     """
 
-    def __init__(self, in_channels, out_channels, dropout=0.1, time_emb=512, vout=False):
+    def __init__(self, in_channels, out_channels, dropout=0.1, time_emb=512, coord_hidden=256, vout=False):
         """
         :param channels:
         :param dropout:
@@ -40,7 +40,11 @@ class ResBlock(nn.Module):
         self.embed_time = nn.Linear(time_emb, in_channels)
 
         # Projects the pixel coordinates up to the number of channels
-        self.embed_coords = nn.Conv2d(2, self.in_channels, 1, padding=0)
+        self.embed_coords = nn.Sequential(
+            nn.Conv2d(2, coord_hidden, 1, padding=0), nn.ReLU(),
+            nn.Conv2d(coord_hidden, coord_hidden, 1, padding=0), nn.ReLU(),
+            nn.Conv2d(coord_hidden, in_channels, 1, padding=0)
+        )
 
         # variational output
         self.vout = nn.Conv2d(out_channels, 2, kernel_size=1, padding=0) if vout else None
