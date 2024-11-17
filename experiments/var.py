@@ -52,6 +52,7 @@ def train(
         name='vcd',
         debug=False,
         time_emb=512,
+        sample_mix = 1.0, # how much of the batch to augment
 ):
 
     """
@@ -124,7 +125,10 @@ def train(
             with torch.no_grad():
                 diff = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1]) #.sigmoid()
                 x1p = xs[2] + diff
-                # x1p = xs[1]
+
+                sel = torch.rand(size=(b,), device=d()) < sample_mix
+                # idx = (~ sel).nonzero()
+                x1p[~ sel] = xs[1][~ sel] # reset a proportion to the non-augmented batch
 
             # Predict x0 from x1p (t1 -> t0)
             output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0])
