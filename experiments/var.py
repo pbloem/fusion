@@ -44,7 +44,6 @@ def train(
         dp=False,
         unet_channels=(16, 32, 64),  # Basic structure of the UNet in channels per block
         blocks_per_level=3,
-        res_cat=False,
         sample_bs=16,
         plot_every=1,
         eval_steps=20,
@@ -75,8 +74,8 @@ def train(
     dataloader, (h, w), n = data(data_name, data_dir, batch_size=bs, nw=num_workers, grayscale=grayscale, size=size)
     print(f'data loaded ({toc():.4} s)')
 
-    unet = fusion.VCUNet(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level, mid_layers=3,
-                             res_cat=res_cat, time_emb=64)
+    unet = fusion.VCUNet(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level,
+                         mid_layers=3, time_emb=64)
 
     if torch.cuda.is_available():
         unet = unet.cuda()
@@ -134,6 +133,7 @@ def train(
 
 
         # # Sample
+        print('Generating sample.')
         unet.eval()
         with torch.no_grad():
 
