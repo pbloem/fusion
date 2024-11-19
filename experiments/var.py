@@ -166,7 +166,7 @@ def train(
             fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(8, 6))
 
             ts = (10/20, 11/20, 12/20)
-            ts = [torch.tensor(t).expand((btch.size(0),)) for t in ts]
+            ts = [torch.tensor(t).expand((btch.size(0),), device=d()) for t in ts]
             xs = [batch(btch, op=tile, t=t, nh=dres, nw=dres) for t in ts]
 
             plotim(xs[0][0], axs[0][0]); axs[0][0].set_title('x0')
