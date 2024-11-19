@@ -113,7 +113,7 @@ def train(
             with torch.no_grad():
                 # pick t0 uniform over (0, 1)
                 t = torch.rand(size=(b, 3), device=d())
-                t[:, 1:] **= p # adjust to make nearby points more likely
+                t[:, 1:] **= p # adjust to make nearby points more likely`
 
                 # t1 is uniform over the range between t0 and 1
                 t[:, 1] = t[:, 1] * (1 - t[:, 0]) + t[:, 0]
@@ -136,7 +136,8 @@ def train(
             output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0])
             # output = output.sigmoid()
 
-            diff = xs[0] - xs[1] # predict the delta between x0 and x1
+            diff = xs[0] - x1p # predict the delta between x0 and x1p
+
             rc_loss = ((output - diff) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
 
             loss = (rc_loss + beta * sum(kls)).mean()
@@ -154,12 +155,39 @@ def train(
             bar.set_postfix({'loss' : loss.item()})
             opt.zero_grad()
 
-
         # # Sample
         print('Generating sample, epoch', e)
         unet.eval()
         with torch.no_grad():
 
+            btch = btch[torch.randperm(btch.size(0))]
+
+            # plot an illustration of the sampling process
+            fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(8, 6))
+
+            ts = (10/20, 11/20, 12/20)
+            xs = [batch(btch, op=tile, t=t, nh=dres, nw=dres) for t in ts]
+
+            plotim(xs[0][0], axs[0][0]); axs[0][0].set_title('x0')
+            plotim(xs[1][0], axs[0][1]); axs[0][1].set_title('x1')
+            plotim(xs[2][0], axs[0][2]); axs[0][2].set_title('x2')
+
+            for i in range(3):
+                diff = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1])  # .sigmoid()
+                x1p = xs[2] + diff
+
+                plotim(x1p[0], axs[1][i]); axs[1][0].set_ylabel('x1 augmented')
+
+                output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0])
+                pred = x1p + output
+
+                plotim(pred[0], axs[2][i]); axs[2][0].set_ylabel('x0 pred')
+
+            plt.savefig(f'./samples_vcd/snapshot-{e}.png')
+
+            plt.figure(figsize=(4, 4))
+
+            # plot a bunch of samples
             ims = torch.randn(size=(sample_bs, c, h, w), device=d())
             ims = batch(ims, op=tile, t=1.0, nh=dres, nw=dres)
 
@@ -172,17 +200,17 @@ def train(
                 ims = ims + diff
 
                 n += 1
-                if n % plot_every == 0:
-                    grid = make_grid(ims.cpu().clip(0, 1), nrow=4).permute(1, 2, 0)
-                    plt.imshow(grid)
-                    plt.gca().axis('off')
-                    plt.savefig(f'./samples_vcd/denoised-{e}-{n:05}.png')
+                griddle(ims, f'./samples_vcd/denoised-{e}-{n:05}.png')
 
-                    # grid = make_grid(mutilde.cpu().clip(0, 1), nrow=4).permute(1, 2, 0)
-                    # plt.imshow(grid)
-                    # plt.gca().axis('off')
-                    # plt.savefig(f'./samples_vcd/mean-{e}-{t:05}.png')
+def plotim(im, ax):
+    ax.imshow(im.permute(1, 2, 0).cpu().clip(0, 1))
+    ax.axis('off')
 
+def griddle(btch, file):
+    grid = make_grid(btch.cpu().clip(0, 1), nrow=4).permute(1, 2, 0)
+    plt.imshow(grid)
+    plt.gca().axis('off')
+    plt.savefig(file)
 
 if __name__ == '__main__':
     fire.Fire()
