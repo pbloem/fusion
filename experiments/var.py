@@ -166,6 +166,7 @@ def train(
             fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(8, 6))
 
             ts = (10/20, 11/20, 12/20)
+            ts = [torch.tensor(t).expand((btch.size(0),)) for t in ts]
             xs = [batch(btch, op=tile, t=t, nh=dres, nw=dres) for t in ts]
 
             plotim(xs[0][0], axs[0][0]); axs[0][0].set_title('x0')
@@ -173,12 +174,12 @@ def train(
             plotim(xs[2][0], axs[0][2]); axs[0][2].set_title('x2')
 
             for i in range(3):
-                diff = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1])  # .sigmoid()
+                diff = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1])  # .sigmoid()
                 x1p = xs[2] + diff
 
                 plotim(x1p[0], axs[1][i]); axs[1][0].set_ylabel('x1 augmented')
 
-                output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0])
+                output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
                 pred = x1p + output
 
                 plotim(pred[0], axs[2][i]); axs[2][0].set_ylabel('x0 pred')
