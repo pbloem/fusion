@@ -169,6 +169,7 @@ def train(
             # p = max//2
             # ts = (p-1)/max, p/max, (p+1)/max
 
+            max = dres ** 2
             ts = 1.0, (max-1)/max, (max-2)/max
 
             ts = [torch.tensor(t, device=d()).expand((btch.size(0),)) for t in ts]
