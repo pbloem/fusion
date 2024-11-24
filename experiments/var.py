@@ -53,6 +53,7 @@ def train(
         debug=False,
         time_emb=512,
         sample_mix = 1.0, # how much of the batch to augment
+        sched = 'uniform',
         p = 1.0, # exponent for sampling the time offsets. >1.0 makes time values near the target value more likely
 ):
 
@@ -110,16 +111,26 @@ def train(
             # torch.sort(t, dim=1)[0]
             # this is biased
 
-            with torch.no_grad():
-                # pick t0 uniform over (0, 1)
-                t = torch.rand(size=(b, 3), device=d())
-                t[:, 1:] **= p # adjust to make nearby points more likely`
+            if sched == 'uniform':
+                with torch.no_grad():
+                    # pick t0 uniform over (0, 1)
+                    t = torch.rand(size=(b, 3), device=d())
+                    t[:, 1:] **= p # adjust to make nearby points more likely`
 
-                # t1 is uniform over the range between t0 and 1
-                t[:, 1] = t[:, 1] * (1 - t[:, 0]) + t[:, 0]
+                    # t1 is uniform over the range between t0 and 1
+                    t[:, 1] = t[:, 1] * (1 - t[:, 0]) + t[:, 0]
 
-                #t2 is uniform over the range between t1 and 1
-                t[:, 2] = t[:, 2] * (1 - t[:, 1]) + t[:, 1]
+                    #t2 is uniform over the range between t1 and 1
+                    t[:, 2] = t[:, 2] * (1 - t[:, 1]) + t[:, 1]
+            elif sched == 'discrete':
+                with torch.no_grad():
+                    max = dres ** 2
+                    t = torch.randint(low=2, high=max, size=(b, 1))
+                    t = torch.cat([t, t-1, t-2], dim=1).to(torch.float)
+                    t = t / max
+
+            else:
+                fc(sched, 'sched')
 
             xs = [batch(btch, op=tile, t=t[:, i], nh=dres, nw=dres) for i in range(3)]
 
@@ -198,9 +209,10 @@ def train(
             ims = torch.randn(size=(sample_bs, c, h, w), device=d())
             ims = batch(ims, op=tile, t=1.0, nh=dres, nw=dres)
 
-            delta = 1.0 / eval_steps
+            steps = dres**2
+            delta = 1.0 / steps
             n = 0
-            for t in (1 - torch.arange(delta, 1, 1/20)):
+            for t in (1 - torch.arange(delta, 1, 1/steps)):
 
                 texp = t.expand((ims.size(0),)).to(d())
                 diff = unet(x1=ims, x0=None, t0=texp-delta, t1=texp) #.sigmoid()
