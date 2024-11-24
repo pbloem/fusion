@@ -165,9 +165,11 @@ def train(
             # plot an illustration of the sampling process
             fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(8, 6))
 
-            max = dres ** 2
-            p = max//2
-            ts = (p-1)/max, p/max, (p+1)/max
+            # max = dres ** 2
+            # p = max//2
+            # ts = (p-1)/max, p/max, (p+1)/max
+
+            ts = 1.0, (max-1)/max, (max-2)/max
 
             ts = [torch.tensor(t, device=d()).expand((btch.size(0),)) for t in ts]
             xs = [batch(btch, op=tile, t=t, nh=dres, nw=dres) for t in ts]
