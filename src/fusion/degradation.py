@@ -1,4 +1,4 @@
-import torch
+import torch, math
 from .tools import d
 
 """
@@ -25,7 +25,7 @@ def batch(ims, op, t=None, *args, **kwargs):
 
         res = []
         for i in range(b):
-            op(ims[i:i+1], t[i], *args, **kwargs)
+            op(ims[i:i+1], t[i].item(), *args, **kwargs)
 
         return ims
 
@@ -49,7 +49,7 @@ def tile(im:torch.Tensor, t:float, nh:int , nw:int, fv=0):
 
     # convert `t` to number of tiles
     total = nh * nw
-    t = int(t * total)
+    t = int(round(t * total))
 
     rows, rem = t // nw, t % nw # nr of rows (of tiles) to fully black out, remaining tiles
 

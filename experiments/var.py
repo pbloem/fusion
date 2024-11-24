@@ -72,6 +72,9 @@ def train(
 
     h, w = size
 
+    # degradation color
+    fv = torch.tensor((.3, .9, .0))[None, :, None, None]
+
     scaler = torch.cuda.amp.GradScaler()
 
     tic()
@@ -122,17 +125,17 @@ def train(
 
                     #t2 is uniform over the range between t1 and 1
                     t[:, 2] = t[:, 2] * (1 - t[:, 1]) + t[:, 1]
+
             elif sched == 'discrete':
                 with torch.no_grad():
                     max = dres ** 2
-                    t = torch.randint(low=2, high=max, size=(b, 1))
+                    t = torch.randint(low=2, high=max + 1, size=(b, 1))
                     t = torch.cat([t, t-1, t-2], dim=1).to(torch.float)
                     t = t / max
-
             else:
                 fc(sched, 'sched')
 
-            xs = [batch(btch, op=tile, t=t[:, i], nh=dres, nw=dres) for i in range(3)]
+            xs = [batch(btch, op=tile, t=t[:, i], nh=dres, nw=dres, fv=fv) for i in range(3)]
 
             # Sample one step to augment the data (t2 -> t1)
             with torch.no_grad():
@@ -184,7 +187,7 @@ def train(
             ts = (max-2)/max, (max-1)/max, 1.0
 
             ts = [torch.tensor(t, device=d()).expand((btch.size(0),)) for t in ts]
-            xs = [batch(btch, op=tile, t=t, nh=dres, nw=dres) for t in ts]
+            xs = [batch(btch, op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
 
             plotim(xs[0][0], axs[0][0]); axs[0][0].set_title('x0')
             plotim(xs[1][0], axs[0][1]); axs[0][1].set_title('x1')
@@ -207,7 +210,7 @@ def train(
 
             # plot a bunch of samples
             ims = torch.randn(size=(sample_bs, c, h, w), device=d())
-            ims = batch(ims, op=tile, t=1.0, nh=dres, nw=dres)
+            ims = batch(ims, op=tile, t=1.0, nh=dres, nw=dres, fv=fv)
 
             steps = dres**2
             delta = 1.0 / steps
