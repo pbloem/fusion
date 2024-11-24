@@ -187,7 +187,7 @@ class VCUNet(nn.Module):
         x = x1
         b, c, h, w = x.size()
 
-        assert t0.size() == (b, ) and t1.size() == (b, )
+        assert t0.size() == (b, ) and t1.size() == (b, ), f'{b=}, {t0.size()=}, {t1.size()=}'
 
         time = self.timeembs(torch.cat([t0[:, None], t1[:, None]], dim=1))
 
