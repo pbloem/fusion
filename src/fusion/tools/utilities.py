@@ -3,6 +3,8 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torch import distributions as dst
+from torch import lgamma
 
 import os, time, math
 
@@ -190,12 +192,12 @@ def kl_loss(zmean, zsig):
     :param zsig: The log of the variance
     :return:
     """
-    b = zmean.size(0)
+    size = zmean.size()
 
     kl = 0.5 * (zsig.exp() - zsig + zmean.pow(2) - 1)
-    kl = kl.reshape(b, -1).sum(dim=1)
+    # kl = kl.reshape(b, -1).sum(dim=1)
 
-    assert kl.size() == (b,)
+    assert kl.size() == size
 
     return kl
 
@@ -214,3 +216,135 @@ def sample(zmean, zsig):
 
     # transform eps to a sample from the given distribution
     return zmean + eps * (zsig * 0.5).exp()
+
+def gamma(x):
+    return torch.lgamma(x).exp()
+
+def A(alpha, sigma):
+    """
+    The A function from Nardon & Pianca
+    :param alpha:
+    :param sigma:
+    :return:
+    """
+    return  (1 / sigma) * (gamma(3 / alpha) / gamma(1 / alpha)).sqrt()
+
+def t(x):
+    return torch.tensor([x], device=d(), dtype=torch.float)
+
+def ex(x, s):
+    if x.numel() == 1:
+        return x.expand(*s)
+    return x
+
+def nkl(mu1, sig1, mu2=t(0.0), sig2=t(1.0), samples=1):
+    """
+    Estimate the KL divergence between two normal distributions
+
+    :return: The kl divergence: a tensor in the same shape as the inputs.
+    """
+    assert mu1.size() == sig1.size()
+
+    mu2, sig2 = ex(mu2, mu1.size()), ex(sig2, sig1.size())
+
+    # take n samples from the first distribution
+    # compute the log of the density ratio
+    norm1 = dst.Normal(mu1, sig1)
+
+    x = norm1.sample( (samples,) ).transpose(0, 1)
+    # -- NB: This transpose only works with one batch dim
+
+    logp1 = nlogp(x, mu1[:, None], sig1[:, None])
+    logp2 = nlogp(x, mu2[:, None], sig2[:, None])
+
+    return - (logp2 - logp1).mean(dim=-1)
+
+
+def gkl(mu1, sig1, alpha1, mu2=t(0.), sig2=t(1.), alpha2=t(2.), samples=1):
+    """
+    Estimate the kl divergence between a given Generalized normal and a prior standard normal with
+    mean 0, std 1 and the given alpha value.
+
+    Tensor shapes should match.
+
+    NB: We use the parametrization from Nardon & Pianca, which differs from the version currently
+        shown on wikipedia
+
+    :return: The kl divergence: a tensor in the same shape as the inputs.
+    """
+    assert mu1.size() == sig1.size() == alpha1.size()
+
+    mu2, sig2, alpha2 = ex(mu2, mu1.size()), ex(sig2, sig1.size()), ex(alpha2, alpha1.size())
+
+    # take n samples from the first distribution
+    # compute the log of the density ratio
+    x = gsample(mu1, sig1, alpha1, n=samples, squeeze=False)
+
+    logp1 = glogp(x, mu1[:, None], sig1[:, None], alpha1[:, None])
+    logp2 = glogp(x, mu2[:, None], sig2[:, None], alpha2[:, None])
+
+    return - (logp2 - logp1).mean(dim=-1)
+
+def nlogp(x, mu, sig):
+
+    t1 = - (math.sqrt(2 * math.pi) * sig).log()
+
+    t2 = - ((x - mu) ** 2) / (2 * sig ** 2)
+
+    return t1 + t2
+
+def glogp(x, mu, sig, alpha):
+    """
+    The log probability density of `x` under the given generalized normal distribution
+
+    :param x:
+    :param mu:
+    :param sig:
+    :param alpha:
+    :return:
+    """
+    afun = A(alpha, sig)
+
+    t1 = torch.log(alpha) - torch.log(torch.tensor([2.0]))
+
+    t2 = afun.log() - lgamma(1/alpha)
+
+    t3 = - (afun * (x - mu).abs()) ** alpha
+
+    return t1  + t2 + t3
+
+def gsample(mu, sig, alpha, n=1, squeeze=True):
+    """
+    Take a reparametrized sample from a given Generalized normal distribution.
+
+    Uses the algorithm from Nardon & Pianca, 2008. This involved one random binary choice, but the
+    resulting pass-through estimate of the gradient should be an unbiased estimate of the true variance
+    (TODO: prove).
+
+    :param mu:
+    :param sig:
+    :param alpha:
+    :param n: number of samples per instance (a new dimension is created)
+    :param squeeze: Whether to remove the sample dimension if n=1
+    :return:
+    """
+    assert mu.size() == sig.size() == alpha.size()
+    s = mu.size()
+
+    mu, sig, alpha = mu[..., None], sig[..., None], alpha[..., None]
+    mu, sig, alpha = mu.expand(*s, n), sig.expand(*s, n), alpha.expand(*s, n)
+
+    a = 1 / alpha
+    b = A(alpha, 1).pow(alpha)
+
+    gd = dst.Gamma(a, b)
+    z = gd.rsample()
+    y = z.pow(1 / alpha)
+    x = y * (torch.rand(size = mu.size()).round() * 2 - 1)
+    # -- x is now a mean centered, unit-std sample with shape alpha.
+
+    res = x * sig + mu # map to the required mean and std.
+
+    if squeeze and n == 1:
+        return res.squeeze(-1)
+    return res

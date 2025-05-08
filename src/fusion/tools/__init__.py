@@ -1,3 +1,4 @@
 from .utilities import (logsumexp, kl_categorical, coords, d, here, Lambda, Debug,
-                        Flatten, fc, gradient_norm, tic, toc, prod, sample, kl_loss)
+                        Flatten, fc, gradient_norm, tic, toc, prod, sample, kl_loss,
+                        gsample, gkl, nkl)
 from .data import data
