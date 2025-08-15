@@ -54,7 +54,8 @@ def train(
         time_emb=512,
         sample_mix = 1.0, # how much of the batch to augment
         sched = 'uniform',
-        p = 1.0, # exponent for sampling the time offsets. >1.0 makes time values near the target value more likely
+        p = 1.0,      # Exponent for sampling the time offsets. >1.0 makes time values near the target value more likely
+        epsmult = 1.0 # Multiplier for the variance given by the decoder. Can be used to limit the effect of sampling.
 ):
 
     """
@@ -147,7 +148,7 @@ def train(
                 x1p[~ sel] = xs[1][~ sel] # reset a proportion to the non-augmented batch
 
             # Predict x0 from x1p (t1 -> t0)
-            output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0])
+            output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0], epsmult=epsmult)
             # output = output.sigmoid()
 
             diff = xs[0] - x1p # predict the delta between x0 and x1p
