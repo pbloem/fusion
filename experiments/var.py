@@ -139,13 +139,14 @@ def train(
                 with torch.no_grad():
                     max = dres ** 2
                     t = torch.randint(low=2, high=max + 1, size=(b, 1), device=d())
-                    t = torch.cat([t, t-1, t-2], dim=1).to(torch.float)
+                    t = torch.cat([t-2, t-1, t], dim=1).to(torch.float)
                     t = t / max
+
             elif sched == 'fixed': # Only picks a single timestep halfway through the noising
                 with torch.no_grad():
                     max = dres ** 2
                     t = torch.full(fill_value=max/2, size=(b, 1), device=d())
-                    t = torch.cat([t, t-1, t-2], dim=1).to(torch.float)
+                    t = torch.cat([t-2, t-1, t], dim=1).to(torch.float)
                     t = t / max
             else:
                 fc(sched, 'sched')
@@ -263,7 +264,7 @@ def tune_vcd(trial):
         beta=trial.suggest_float('beta', 1e-8, 1e8, log=True),
         sched=trial.suggest_categorical('sched', ['uniform', 'discrete']),
         p=trial.suggest_float('p', 1e-2, 1e2, log=True),
-
+        dres=4,
         id=trial.number
     )
 
