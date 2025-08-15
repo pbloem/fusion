@@ -99,7 +99,7 @@ def train(
 
     opt = torch.optim.Adam(lr=lr, params=unet.parameters())
 
-    Path('./samples_vcd/{id}/').mkdir(parents=True, exist_ok=True)
+    Path(f'./samples_vcd/{id}/').mkdir(parents=True, exist_ok=True)
 
     runloss = 0.0
 
