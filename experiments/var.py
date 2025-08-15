@@ -186,7 +186,7 @@ def train(
             btch = btch[torch.randperm(btch.size(0))]
 
             # plot an illustration of the sampling process
-            fig, axs = plt.subplots(nrows=5, ncols=1, figsize=(8, 2))
+            fig, axs = plt.subplots(nrows=1, ncols=5, figsize=(8, 2))
 
             # max = dres ** 2
             # p = max//2
