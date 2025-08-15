@@ -176,8 +176,6 @@ def train(
         with torch.no_grad():
 
             btch = btch[torch.randperm(btch.size(0))]
-            print(btch.device)
-            exit()
 
             # plot an illustration of the sampling process
             fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(8, 6))
@@ -190,7 +188,7 @@ def train(
             ts = (max-2)/max, (max-1)/max, 1.0
 
             ts = [torch.tensor(t, device=d()).expand((btch.size(0),)) for t in ts]
-            xs = [batch(btch, op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
+            xs = [batch(btch.to(d()), op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
 
             plotim(xs[0][0], axs[0][0]); axs[0][0].set_title('x0')
             plotim(xs[1][0], axs[0][1]); axs[0][1].set_title('x1')
