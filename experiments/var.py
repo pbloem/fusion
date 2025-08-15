@@ -176,6 +176,8 @@ def train(
         with torch.no_grad():
 
             btch = btch[torch.randperm(btch.size(0))]
+            print(btch.device)
+            exit()
 
             # plot an illustration of the sampling process
             fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(8, 6))
