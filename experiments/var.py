@@ -253,7 +253,7 @@ def griddle(btch, file):
     plt.gca().axis('off')
     plt.savefig(file)
 
-def tunesvd(trial):
+def tune_vcd(trial):
 
     res = train(
         epochs=5,
@@ -277,7 +277,7 @@ def tune(trials=100, name='vcd-tune'):
         direction="minimize",
     )
 
-    study.optimize(lambda t : tune_synth(trial=t, data='notvery'), n_trials=trials)
+    study.optimize(lambda t : tune_vcd(trial=t), n_trials=trials)
 
     print(f'Finished. Result:')
     print('\t', study.best_params)
