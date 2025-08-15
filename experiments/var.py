@@ -225,23 +225,25 @@ def train(
 
             plt.savefig(path + f'snapshot-{e}.png')
 
-            plt.figure(figsize=(4, 4))
+            if sched != 'fixed':
 
-            # plot a bunch of samples
-            ims = torch.randn(size=(sample_bs, c, h, w), device=d())
-            ims = batch(ims, op=tile, t=1.0, nh=dres, nw=dres, fv=fv)
+                plt.figure(figsize=(4, 4))
 
-            steps = dres**2
-            delta = 1.0 / steps
-            n = 0
-            for t in (1 - torch.arange(delta, 1, 1/steps)):
+                # plot a bunch of samples
+                ims = torch.randn(size=(sample_bs, c, h, w), device=d())
+                ims = batch(ims, op=tile, t=1.0, nh=dres, nw=dres, fv=fv)
 
-                texp = t.expand((ims.size(0),)).to(d())
-                diff = unet(x1=ims, x0=None, t0=texp-delta, t1=texp) #.sigmoid()
-                ims = ims + diff
+                steps = dres**2
+                delta = 1.0 / steps
+                n = 0
+                for t in (1 - torch.arange(delta, 1, 1/steps)):
 
-                n += 1
-                griddle(ims, path + f'denoised-{e}-{n:05}.png')
+                    texp = t.expand((ims.size(0),)).to(d())
+                    diff = unet(x1=ims, x0=None, t0=texp-delta, t1=texp) #.sigmoid()
+                    ims = ims + diff
+
+                    n += 1
+                    griddle(ims, path + f'denoised-{e}-{n:05}.png')
 
     return {'last loss' : loss, 'ema loss': runloss}
 
