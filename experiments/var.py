@@ -60,7 +60,8 @@ def train(
         sched = 'uniform',
         p = 1.0,      # Exponent for sampling the time offsets. >1.0 makes time values near the target value more likely
         epsmult = 1.0, # Multiplier for the variance given by the decoder. Can be used to limit the effect of sampling.
-        id = 0
+        id = 0,
+        cond_do = 0.0, # dropout on the conditional input
 ):
 
     """
@@ -163,6 +164,9 @@ def train(
                 x1p[~ sel] = xs[1][~ sel] # reset a proportion to the non-augmented batch
 
             # Predict x0 from x1p (t1 -> t0)
+            if cond_do > 0.0:
+                x1p = F.dropout(x1p, p=cond_do)
+
             output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0], epsmult=epsmult)
             # output = output.sigmoid()
 
