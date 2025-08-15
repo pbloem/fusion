@@ -130,7 +130,13 @@ def train(
             elif sched == 'discrete':
                 with torch.no_grad():
                     max = dres ** 2
-                    t = torch.randint(low=2, high=max + 1, size=(b, 1))
+                    t = torch.randint(low=2, high=max + 1, size=(b, 1), device=d())
+                    t = torch.cat([t, t-1, t-2], dim=1).to(torch.float)
+                    t = t / max
+            elif sched == 'fixed': # Only picks a single timestep halfway through the noising
+                with torch.no_grad():
+                    max = dres ** 2
+                    t = torch.full(fill_value=max/2, size=(b, 1), device=d())
                     t = torch.cat([t, t-1, t-2], dim=1).to(torch.float)
                     t = t / max
             else:
@@ -174,6 +180,7 @@ def train(
         # # Sample
         print('Generating sample, epoch', e)
         unet.eval()
+
         with torch.no_grad():
 
             btch = btch[torch.randperm(btch.size(0))]
@@ -186,7 +193,7 @@ def train(
             # ts = (p-1)/max, p/max, (p+1)/max
 
             max = dres ** 2
-            ts = (max-2)/max, (max-1)/max, 1.0
+            ts = (max/2 - 2)/max, (max/2 -1)/max, 0.5
 
             ts = [torch.tensor(t, device=d()).expand((btch.size(0),)) for t in ts]
             xs = [batch(btch.to(d()), op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
