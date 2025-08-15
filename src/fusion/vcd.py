@@ -171,7 +171,7 @@ class VCUNet(nn.Module):
             nn.Linear(time_emb * 2, time_emb),
         )
 
-    def forward(self, x1, t0, t1, x0=None):
+    def forward(self, x1, t0, t1, x0=None, epsmult=1):
         """
 
         :param z1: The input to the network. The image corrupted to t1.
@@ -240,7 +240,7 @@ class VCUNet(nn.Module):
                     c = z.size(1)
 
                     kl_losses.append(kl_loss(z[:, :c//2, :, :], z[:, c//2:, :, :]))
-                    z = sample(z[:, :c//2, :, :], z[:, c//2:, :, :])
+                    z = sample(z[:, :c//2, :, :], z[:, c//2:, :, :] * epsmult)
 
                 x = mod(torch.cat([x, h, z], dim=1), time)
             else:
