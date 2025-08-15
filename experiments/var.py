@@ -202,16 +202,15 @@ def train(
             plotim(xs[1][0], axs[0][1]); axs[0][1].set_title('x1')
             plotim(xs[2][0], axs[0][2]); axs[0][2].set_title('x2')
 
-            for i in range(3):
-                diff = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1])  # .sigmoid()
-                x1p = xs[2] + diff
+            diff = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1])  # .sigmoid()
+            x1p = xs[2] + diff
 
-                plotim(x1p[0], axs[1][i]); axs[1][0].set_ylabel('x1 augmented')
+            plotim(x1p[0], axs[1][0]); axs[1][0].set_ylabel('x1 augmented')
 
-                output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
-                pred = x1p + output
+            output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
+            pred = x1p + output
 
-                plotim(pred[0], axs[2][i]); axs[2][0].set_ylabel('x0 pred')
+            plotim(pred[0], axs[2][0]); axs[2][0].set_ylabel('x0 pred')
 
             plt.savefig(f'./samples_vcd/snapshot-{e}.png')
 
