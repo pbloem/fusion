@@ -497,6 +497,16 @@ def vae(
         else:
             z = gsample(zms[:, 0:1], zms[:, 1:2].exp(), zms[:, 2:].exp())
 
+        plt.figure()
+
+        plt.scatter(x, z, c='b', alpha=0.5, linewidth=0, s=5)
+        plt.xlabel('in')
+        plt.ylabel('latent')
+
+        plt.savefig('vae_latent.png')
+
+        plt.figure()
+
         out = dec(z)
         norm = dst.Normal(out[:, :1], out[:, 1:].exp() + EPS)
         xp = norm.sample()

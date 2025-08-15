@@ -153,8 +153,9 @@ def train(
             diff = xs[0] - x1p # predict the delta between x0 and x1p
 
             rc_loss = ((output - diff) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
+            kls = sum(kl.reshape(b, -1).sum(dim=-1) for kl in kls)
 
-            loss = (rc_loss + beta * sum(kls)).mean()
+            loss = (rc_loss + beta * kls).mean()
 
             loss.backward()
             opt.step()
