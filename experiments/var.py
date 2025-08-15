@@ -198,19 +198,19 @@ def train(
             ts = [torch.tensor(t, device=d()).expand((btch.size(0),)) for t in ts]
             xs = [batch(btch.to(d()), op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
 
-            plotim(xs[0][0], axs[0][0]); axs[0][0].set_title('x0')
-            plotim(xs[1][0], axs[0][1]); axs[0][1].set_title('x1')
-            plotim(xs[2][0], axs[0][2]); axs[0][2].set_title('x2')
+            plotim(xs[0][0], axs[0]); axs[0].set_title('x0')
+            plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
+            plotim(xs[2][0], axs[2]); axs[2].set_title('x2')
 
             diff = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1])  # .sigmoid()
             x1p = xs[2] + diff
 
-            plotim(x1p[0], axs[1][0]); axs[1][1].set_title('x1 augmented')
+            plotim(x1p[0], axs[3]); axs[3].set_title('x1 augmented')
 
             output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
             pred = x1p + output
 
-            plotim(pred[0], axs[2][0]); axs[2][0].set_title('x0 pred')
+            plotim(pred[0], axs[4]); axs[4].set_title('x0 pred')
 
             plt.savefig(f'./samples_vcd/snapshot-{e}.png')
 
