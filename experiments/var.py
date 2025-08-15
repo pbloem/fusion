@@ -99,7 +99,8 @@ def train(
 
     opt = torch.optim.Adam(lr=lr, params=unet.parameters())
 
-    Path(f'./samples_vcd/{id}/').mkdir(parents=True, exist_ok=True)
+    path = f'./samples_vcd/{id}/'
+    Path(path).mkdir(parents=True, exist_ok=True)
 
     runloss = 0.0
 
@@ -221,7 +222,7 @@ def train(
 
             plotim(pred[0], axs[4]); axs[4].set_title('x0 pred')
 
-            plt.savefig(f'./samples_vcd/snapshot-{e}.png')
+            plt.savefig(path + f'snapshot-{e}.png')
 
             plt.figure(figsize=(4, 4))
 
@@ -239,7 +240,7 @@ def train(
                 ims = ims + diff
 
                 n += 1
-                griddle(ims, f'./samples_vcd/denoised-{e}-{n:05}.png')
+                griddle(ims, path + f'denoised-{e}-{n:05}.png')
 
     return {'last loss' : loss, 'ema loss': runloss}
 
