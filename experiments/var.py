@@ -186,7 +186,7 @@ def train(
             btch = btch[torch.randperm(btch.size(0))]
 
             # plot an illustration of the sampling process
-            fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(8, 6))
+            fig, axs = plt.subplots(nrows=5, ncols=1, figsize=(8, 2))
 
             # max = dres ** 2
             # p = max//2
@@ -205,12 +205,12 @@ def train(
             diff = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1])  # .sigmoid()
             x1p = xs[2] + diff
 
-            plotim(x1p[0], axs[1][0]); axs[1][0].set_ylabel('x1 augmented')
+            plotim(x1p[0], axs[1][0]); axs[1][1].set_title('x1 augmented')
 
             output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
             pred = x1p + output
 
-            plotim(pred[0], axs[2][0]); axs[2][0].set_ylabel('x0 pred')
+            plotim(pred[0], axs[2][0]); axs[2][0].set_title('x0 pred')
 
             plt.savefig(f'./samples_vcd/snapshot-{e}.png')
 
