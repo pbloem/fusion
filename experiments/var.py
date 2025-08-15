@@ -30,6 +30,10 @@ import sys
 
 import wandb
 
+import optuna
+
+GAMMA = 0.9
+
 def train(
         epochs=5,
         steps=120,
@@ -55,7 +59,8 @@ def train(
         sample_mix = 1.0, # how much of the batch to augment
         sched = 'uniform',
         p = 1.0,      # Exponent for sampling the time offsets. >1.0 makes time values near the target value more likely
-        epsmult = 1.0 # Multiplier for the variance given by the decoder. Can be used to limit the effect of sampling.
+        epsmult = 1.0, # Multiplier for the variance given by the decoder. Can be used to limit the effect of sampling.
+        id = 0
 ):
 
     """
@@ -94,7 +99,9 @@ def train(
 
     opt = torch.optim.Adam(lr=lr, params=unet.parameters())
 
-    Path('./samples_vcd/').mkdir(parents=True, exist_ok=True)
+    Path('./samples_vcd/{id}/').mkdir(parents=True, exist_ok=True)
+
+    runloss = 0.0
 
     for e in range(epochs):
         # Train
@@ -174,7 +181,9 @@ def train(
                     'gradient_norm': gradient_norm(unet),
                 })
 
-            bar.set_postfix({'loss' : loss.item()})
+            runloss += runloss * (1-GAMMA) + loss * GAMMA
+
+            bar.set_postfix({'running loss' : loss.item()})
             opt.zero_grad()
 
         # # Sample
@@ -232,6 +241,8 @@ def train(
                 n += 1
                 griddle(ims, f'./samples_vcd/denoised-{e}-{n:05}.png')
 
+    return {'last loss' : loss, 'ema loss': runloss}
+
 def plotim(im, ax):
     ax.imshow(im.permute(1, 2, 0).cpu().clip(0, 1))
     ax.axis('off')
@@ -241,6 +252,35 @@ def griddle(btch, file):
     plt.imshow(grid)
     plt.gca().axis('off')
     plt.savefig(file)
+
+def tunesvd(trial):
+
+    res = train(
+        epochs=5,
+        bs=256,
+        lr=trial.suggest_float('lr', 1e-5, 2e-3, log=True),
+        beta=trial.suggest_float('beta', 1e-8, 1e8, log=True),
+        sched=trial.suggest_categorical('sched', ['uniform', 'discrete']),
+        p=trial.suggest_float('p', 1e-2, 1e2, log=True),
+
+        id=trial.number
+    )
+
+    return res['ema loss']
+
+def tune(trials=100, name='vcd-tune'):
+
+    study = optuna.create_study(
+        storage=f'sqlite:///db.sqlite3',  # Specify the storage URL here.
+        study_name=name,
+        load_if_exists=True,
+        direction="minimize",
+    )
+
+    study.optimize(lambda t : tune_synth(trial=t, data='notvery'), n_trials=trials)
+
+    print(f'Finished. Result:')
+    print('\t', study.best_params)
 
 if __name__ == '__main__':
     fire.Fire()
