@@ -192,7 +192,8 @@ def train(
             bar.set_postfix({'running loss' : loss.item()})
             opt.zero_grad()
 
-        # # Sample
+        ### Sample
+
         print('Generating sample, epoch', e)
         unet.eval()
 
@@ -201,7 +202,7 @@ def train(
             btch = btch[torch.randperm(btch.size(0))]
 
             # plot an illustration of the sampling process
-            fig, axs = plt.subplots(nrows=1, ncols=5, figsize=(8, 2))
+            fig, axs = plt.subplots(nrows=1, ncols=7, figsize=(8, 2))
 
             # max = dres ** 2
             # p = max//2
@@ -222,10 +223,12 @@ def train(
 
             plotim(x1p[0], axs[3]); axs[3].set_title('x1 augmented')
 
-            output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
-            pred = x1p + output
+            for i in range(3):
 
-            plotim(pred[0], axs[4]); axs[4].set_title('x0 pred')
+                output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
+                pred = x1p + output
+
+                plotim(pred[0], axs[4 + i]); axs[4].set_title('x0 pred')
 
             plt.savefig(path + f'snapshot-{e}.png')
 
