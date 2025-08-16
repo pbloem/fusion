@@ -192,7 +192,7 @@ class VCUNet(nn.Module):
         time = self.timeembs(torch.cat([t0[:, None], t1[:, None]], dim=1))
 
         hs = [x] # Collect values for skip connections, start with the input image
-        if x0 is not None: zs = [x0]
+        if x0 is not None: zs = []
 
         x = self.initial(x) # Project up to the first nr. of channels
         if x0 is not None: xvc = self.initial(x0)
@@ -257,5 +257,4 @@ class VCUNet(nn.Module):
 
         if x0 is None:
             return self.final(x)
-            # return x0
-        return x0, kl_losses
+        return self.final(x), kl_losses
