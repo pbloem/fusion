@@ -231,7 +231,7 @@ class VCUNet(nn.Module):
             if type(mod) == ResBlock:
 
                 h = hs.pop() # The value from the relevant skip connection
-                print('h', h.size())
+                # print('h', h.size())
 
                 if x0 is None:
                     b, _ , height, width = h.size()
@@ -244,7 +244,7 @@ class VCUNet(nn.Module):
                     kl_losses.append(kl_loss(z[:, :c//2, :, :], z[:, c//2:, :, :]))
                     z = sample(z[:, :c//2, :, :], z[:, c//2:, :, :] * epsmult)
 
-                    print('z', z.size())
+                    # print('z', z.size())
                 x = mod(torch.cat([x, h, z], dim=1), time)
             else:
                 x = mod(x)
@@ -253,6 +253,7 @@ class VCUNet(nn.Module):
         # -- The final pop from `hs` is the input image.
         # -- Most UNets don't have the input on a residual, but this seems like an oversight to me.
 
+        exit()
         if x0 is None:
             return self.final(x)
         return self.final(x), kl_losses
