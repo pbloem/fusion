@@ -213,6 +213,12 @@ def train(
             bar.set_postfix({'running loss' : loss.item()})
             opt.zero_grad()
 
+            instances_seen += b
+
+            if beta_sched[0] < instances_seen < beta_sched[1]:
+                curbeta = beta[0] + (beta[1] - beta[0]) * (instances_seen - beta_sched[0]) / (
+                            beta_sched[1] - beta_sched[0])
+
         ### Sample
 
         print('Generating sample, epoch', e)
@@ -301,10 +307,6 @@ def train(
 
                     n += 1
                     griddle(ims, path + f'denoised-{e}-{n:05}.png')
-
-        instances_seen += b
-        if beta_sched[0] < instances_seen < beta_sched[1]:
-            curbeta = beta[0] + (beta[1] - beta[0]) * (instances_seen - beta_sched[0])/(beta_sched[1]-beta_sched[0])
 
     return {'last loss' : loss, 'ema loss': runloss}
 
