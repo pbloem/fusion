@@ -233,7 +233,7 @@ def train(
                 plotim(pred[0], axs[4 + i]); axs[4 + i].set_title('x0 rec')
 
             for i in range(3):
-                output, kls = unet(x1=x1p, x0=None, t1=ts[1], t0=ts[0])
+                output = unet(x1=x1p, x0=None, t1=ts[1], t0=ts[0])
                 pred = x1p + output
 
                 plotim(pred[0], axs[7 + i]);
