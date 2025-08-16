@@ -162,7 +162,7 @@ class VCUNet(nn.Module):
                 self.decoder.append(nn.Conv2d(ch, rchannels[i+1], kernel_size=1, padding=0))
 
         # Final convolution down to the required number of output channels
-        self.final = nn.Conv2d(channels[0] + 3, 3, kernel_size=1, padding=0)
+        self.final = nn.Conv2d(channels[0] + 3 + 3, 3, kernel_size=1, padding=0)
 
         # Continuous time (0, 1), use a nonlinear function to project up
         self.timeembs = nn.Sequential(
@@ -192,8 +192,7 @@ class VCUNet(nn.Module):
         time = self.timeembs(torch.cat([t0[:, None], t1[:, None]], dim=1))
 
         hs = [x] # Collect values for skip connections, start with the input image
-
-        if x0 is not None: zs = []
+        if x0 is not None: zs = [x0]
 
         x = self.initial(x) # Project up to the first nr. of channels
         if x0 is not None: xvc = self.initial(x0)
@@ -251,7 +250,7 @@ class VCUNet(nn.Module):
             else:
                 x = mod(x)
 
-        x = torch.cat([x, hs.pop()], dim=1)
+        x = torch.cat([x, hs.pop(), zs.pop()], dim=1)
         # -- The final pop from `hs` is the input image.
         # -- Most UNets don't have the input on a residual, but this seems like an oversight to me.
 
