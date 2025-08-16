@@ -164,8 +164,10 @@ def train(
                 x1p[~ sel] = xs[1][~ sel] # reset a proportion to the non-augmented batch
 
             # Predict x0 from x1p (t1 -> t0)
-            if cond_do > 0.0:
+            if type(cond_do) == float and cond_do > 0.0:
                 x1p = F.dropout(x1p, p=cond_do)
+            if cond_do == 'random':
+                x1p = F.dropout(x1p, p=random.random())
 
             output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0], epsmult=epsmult)
             # output = output.sigmoid()
