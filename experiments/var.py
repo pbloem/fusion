@@ -204,7 +204,7 @@ def train(
             btch = btch[torch.randperm(btch.size(0))]
 
             # plot an illustration of the sampling process
-            fig, axs = plt.subplots(nrows=1, ncols=7, figsize=(8, 2))
+            fig, axs = plt.subplots(nrows=1, ncols=9, figsize=(12, 2))
 
             # max = dres ** 2
             # p = max//2
@@ -230,7 +230,14 @@ def train(
                 output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
                 pred = x1p + output
 
-                plotim(pred[0], axs[4 + i]); axs[4 + i].set_title('x0 pred')
+                plotim(pred[0], axs[4 + i]); axs[4 + i].set_title('x0 rec')
+
+            for i in range(3):
+                output, kls = unet(x1=x1p, x0=None, t1=ts[1], t0=ts[0])
+                pred = x1p + output
+
+                plotim(pred[0], axs[7 + i]);
+                axs[7 + i].set_title('x0 pred')
 
             plt.savefig(path + f'snapshot-{e}.png')
 
