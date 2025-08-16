@@ -26,7 +26,7 @@ def data(name, data_dir, batch_size, nw=2, size=None, grayscale = False):
              transforms.Resize((h, w)),
              transforms.ToTensor()])
 
-        dataset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+        dataset = tv.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=nw)
 
         return dataloader, (h, w), len(dataset)
@@ -43,7 +43,7 @@ def data(name, data_dir, batch_size, nw=2, size=None, grayscale = False):
         transform.append(transforms.ToTensor())
         transform = transforms.Compose(transform)
 
-        dataset = (torchvision.datasets.ImageFolder(root=data_dir, transform=transform))
+        dataset = (tv.datasets.ImageFolder(root=data_dir, transform=transform))
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=nw)
 
         return dataloader, (h, w), len(dataset)
@@ -55,7 +55,7 @@ def data(name, data_dir, batch_size, nw=2, size=None, grayscale = False):
         transform = transforms.Compose(
             [transforms.ToTensor()])
 
-        dataset = (torchvision.datasets.ImageFolder(root=data_dir, transform=transform))
+        dataset = (tv.datasets.ImageFolder(root=data_dir, transform=transform))
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=nw)
 
         return dataloader, (h, w), len(dataset)
