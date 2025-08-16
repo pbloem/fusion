@@ -231,6 +231,7 @@ class VCUNet(nn.Module):
             if type(mod) == ResBlock:
 
                 h = hs.pop() # The value from the relevant skip connection
+                print('h', h.size())
 
                 if x0 is None:
                     b, _ , height, width = h.size()
@@ -243,7 +244,7 @@ class VCUNet(nn.Module):
                     kl_losses.append(kl_loss(z[:, :c//2, :, :], z[:, c//2:, :, :]))
                     z = sample(z[:, :c//2, :, :], z[:, c//2:, :, :] * epsmult)
 
-                    print(z.size())
+                    print('z', z.size())
                 x = mod(torch.cat([x, h, z], dim=1), time)
             else:
                 x = mod(x)
