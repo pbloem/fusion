@@ -53,7 +53,7 @@ def train(
         eval_steps=20,
         dres=8,             # resolution of the tiles in the degradation
         beta=(0.0,1.0),
-        beta_sched=(100_000, 500_000),
+        beta_sched=(60_000, 180_000),
         name='vcd',
         debug=False,
         time_emb=512,
