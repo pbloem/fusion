@@ -253,7 +253,6 @@ class VCUNet(nn.Module):
         # -- The final pop from `hs` is the input image.
         # -- Most UNets don't have the input on a residual, but this seems like an oversight to me.
 
-        exit()
         if x0 is None:
             return self.final(x)
         return self.final(x), kl_losses
