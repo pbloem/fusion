@@ -47,9 +47,9 @@ class ResBlock(nn.Module):
         )
 
         # variational output
-        self.vout = nn.Conv2d(out_channels, 2, kernel_size=1, padding=0) if vout else None
-        # -- We give the vout just one output channel at the current resolution (or rather, a mean and var, so
-        #    two channels, but they represent a dist on one).
+        self.vout = nn.Conv2d(out_channels, 2 * out_channels, kernel_size=1, padding=0) if vout else None
+        # [-- We give the vout just one output channel at the current resolution (or rather, a mean and var, so
+        #    two channels, but they represent a dist on one).]
 
     def forward(self, x, time):
         """
@@ -152,9 +152,9 @@ class VCUNet(nn.Module):
             )
 
             # Add a sequence of ResBlocks
-            self.decoder.extend(ResBlock(in_channels=ch * 2 + 1, out_channels=ch, time_emb=time_emb)
+            self.decoder.extend(ResBlock(in_channels=ch * 3, out_channels=ch, time_emb=time_emb)
                                 for _ in range(num_blocks))
-            # -- In channels: ch from the previous block, ch from the res connection and 1 channel from the
+            # -- In channels: `ch` from the previous block, `ch` from the res connection and `ch` from the
             #    vc connection
 
             if i < len(channels) - 1:
@@ -231,15 +231,17 @@ class VCUNet(nn.Module):
             if type(mod) == ResBlock:
 
                 h = hs.pop() # The value from the relevant skip connection
+                c = h.size(1)
                 # print('h', h.size())
 
                 if x0 is None:
                     b, _ , height, width = h.size()
-                    z = torch.randn(size=(b, 1, height, width), device=d()) # sample from the standard Gaussian
+                    z = torch.randn(size=(b, c, height, width), device=d()) # sample from the standard Gaussian
                 else:
                     z = zs.pop() # The latent from the VC encoder branch
 
-                    c = z.size(1); assert c == 2
+                    assert z.size(1) == 2 * c
+                    # c = z.size(1)
 
                     kl_losses.append(kl_loss(z[:, :c//2, :, :], z[:, c//2:, :, :]))
                     z = sample(z[:, :c//2, :, :], z[:, c//2:, :, :] * epsmult)
