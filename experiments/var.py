@@ -52,7 +52,8 @@ def train(
         plot_every=1,
         eval_steps=20,
         dres=8,             # resolution of the tiles in the degradation
-        beta=1.0,
+        beta=(0.0,1.0),
+        beta_sched=(100_000, 500_000),
         name='vcd',
         debug=False,
         time_emb=512,
@@ -105,6 +106,10 @@ def train(
     Path(path).mkdir(parents=True, exist_ok=True)
 
     runloss = 0.0
+    instances_seen = 0
+
+    curbeta = beta[0]
+    beta_delta = (beta[1] - beta[0]) / (beta_sched[1] - beta_sched[0])
 
     for e in range(epochs):
         # Train
@@ -190,7 +195,7 @@ def train(
             rc_loss = ((output - target) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
             kls = sum(kl.reshape(b, -1).sum(dim=-1) for kl in kls)
 
-            loss = (rc_loss + beta * kls).mean()
+            loss = (rc_loss + curbeta * kls).mean()
 
             loss.backward()
             opt.step()
@@ -200,6 +205,7 @@ def train(
                     'loss': loss.item(),
                     'kl_loss': sum(kls).mean().item(),
                     'gradient_norm': gradient_norm(unet),
+                    'beta': curbeta,
                 })
 
             runloss += runloss * (1-GAMMA) + loss * GAMMA
@@ -295,6 +301,10 @@ def train(
 
                     n += 1
                     griddle(ims, path + f'denoised-{e}-{n:05}.png')
+
+        instances_seen += b
+        if beta_sched[0] < instances_seen < beta_sched[1]:
+            curbeta = beta[0] + (beta[1] - beta[0]) * (instances_seen - beta_sched[0])/(beta_sched[1]-beta_sched[0])
 
     return {'last loss' : loss, 'ema loss': runloss}
 
