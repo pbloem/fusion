@@ -200,7 +200,7 @@ def train(
 
             loss.backward()
 
-            gn = gradient_norm(model)
+            gn = gradient_norm(unet)
             if gc > 0.0:
                 nn.utils.clip_grad_norm_(model.parameters(), gc)
 
