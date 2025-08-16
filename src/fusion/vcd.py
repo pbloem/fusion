@@ -257,6 +257,6 @@ class VCUNet(nn.Module):
         # -- Most UNets don't have the input on a residual, but this seems like an oversight to me.
 
         if x0 is None:
-            # return self.final(x)
-            return x0
-        return self.final(x), kl_losses
+            return self.final(x)
+            # return x0
+        return x0, kl_losses
