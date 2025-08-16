@@ -196,7 +196,7 @@ class VCUNet(nn.Module):
         if x0 is not None: zs = []
 
         x = self.initial(x) # Project up to the first nr. of channels
-        if x0 is not None: xvc = x.clone()
+        if x0 is not None: xvc = self.initial(x0)
 
         # Encoder branches
         for mod, vcmod in zip(self.encoder, self.vcencoder):
