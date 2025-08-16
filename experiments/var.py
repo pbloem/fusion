@@ -62,6 +62,7 @@ def train(
         epsmult = 1.0, # Multiplier for the variance given by the decoder. Can be used to limit the effect of sampling.
         id = 0,
         cond_do = 0.0, # dropout on the conditional input
+        out_type = 'difference' # 'difference' predict the difference vector between the input and the target, 'target' predict the target directly
 ):
 
     """
@@ -156,8 +157,14 @@ def train(
 
             # Sample one step to augment the data (t2 -> t1)
             with torch.no_grad():
-                diff = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1]) #.sigmoid()
-                x1p = xs[2] + diff
+                out = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1]) #.sigmoid()
+
+                if out_type == 'difference':
+                    x1p = xs[2] + out
+                elif out_type == 'target':
+                    x1p = out
+                else:
+                    fc(out_type, 'out_type')
 
                 sel = torch.rand(size=(b,), device=d()) < sample_mix
                 # idx = (~ sel).nonzero()
@@ -173,9 +180,14 @@ def train(
             output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0], epsmult=epsmult)
             # output = output.sigmoid()
 
-            diff = xs[0] - x1p # predict the delta between x0 and x1p
+            if out_type == 'difference':
+                target = xs[0] - x1p # predict the delta between x0 and x1p
+            elif out_type == 'target':
+                target = xs[0]
+            else:
+                fc(out_type, 'out_type')
 
-            rc_loss = ((output - diff) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
+            rc_loss = ((output - target) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
             kls = sum(kl.reshape(b, -1).sum(dim=-1) for kl in kls)
 
             loss = (rc_loss + beta * kls).mean()
@@ -221,16 +233,20 @@ def train(
             plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
             plotim(xs[2][0], axs[2]); axs[2].set_title('x2')
 
-            diff = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1])  # .sigmoid()
-            # x1p = xs[2] + diff
-            x1p = xs[1]
+            out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1])  # .sigmoid()
+
+            if out_type == 'difference':
+                x1p = x[0] + out
+            elif out_type == 'target':
+                x1p = out
+            else:
+                fc(out_type, 'out_type')
 
             # Apply dropout to x1p
             if type(cond_do) == float and cond_do > 0.0:
                 x1p = F.dropout(x1p, p=cond_do)
             if cond_do == 'random':
                 x1p = F.dropout(x1p, p=random.random())
-
 
             plotim(x1p[0], axs[3]); axs[3].set_title('x1 aug')
 
@@ -239,13 +255,24 @@ def train(
                 output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
                 pred = x1p + output
 
+                if out_type == 'difference':
+                    pred = x1p + out
+                elif out_type == 'target':
+                    pred = out
+                else: fc(out_type, 'out_type')
+
                 plotim(pred[0], axs[4 + i]); axs[4 + i].set_title('x0 rec')
 
             for i in range(3):
                 output = unet(x1=x1p, x0=None, t1=ts[1], t0=ts[0])
-                pred = x1p + output
 
-                plotim(pred[0], axs[7 + i]);
+                if out_type == 'difference':
+                    pred = x1p + out
+                elif out_type == 'target':
+                    pred = out
+                else: fc(out_type, 'out_type')
+
+                plotim(pred[0], axs[7 + i])
                 axs[7 + i].set_title('x0 pred')
 
             plt.savefig(path + f'snapshot-{e}.png')

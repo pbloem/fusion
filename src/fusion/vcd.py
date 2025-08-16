@@ -154,7 +154,7 @@ class VCUNet(nn.Module):
             # Add a sequence of ResBlocks
             self.decoder.extend(ResBlock(in_channels=ch * 2 + 1, out_channels=ch, time_emb=time_emb)
                                 for _ in range(num_blocks))
-            # -- In channels: ch from the previous block, ch from the res connection and 1 from the
+            # -- In channels: ch from the previous block, ch from the res connection and 1 channel from the
             #    vc connection
 
             if i < len(channels) - 1:
@@ -203,7 +203,7 @@ class VCUNet(nn.Module):
             if type(mod) == ResBlock:
 
                 x = mod(x, time=time)
-                hs.append(x)
+                hs.append(x) # skip connections
 
                 if x0 is not None:
                     xvc, z = vcmod(torch.cat([xvc, x], dim=1), time=time)
@@ -211,7 +211,7 @@ class VCUNet(nn.Module):
                     #    this allows it to easily compute the differences between z_{t-1} and z_t
                     # -- The second output is the mean/var on the latent space.
 
-                    zs.append(z)
+                    zs.append(z) # encoded target output
 
             else:
                 x = mod(x)
@@ -238,7 +238,7 @@ class VCUNet(nn.Module):
                 else:
                     z = zs.pop() # The latent from the VC encoder branch
 
-                    c = z.size(1)
+                    c = z.size(1); assert c == 2
 
                     kl_losses.append(kl_loss(z[:, :c//2, :, :], z[:, c//2:, :, :]))
                     z = sample(z[:, :c//2, :, :], z[:, c//2:, :, :] * epsmult)
@@ -253,5 +253,4 @@ class VCUNet(nn.Module):
 
         if x0 is None:
             return self.final(x)
-
         return self.final(x), kl_losses
