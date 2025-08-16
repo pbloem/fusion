@@ -250,7 +250,9 @@ class VCUNet(nn.Module):
             else:
                 x = mod(x)
 
-        x = torch.cat([x, hs.pop(), zs.pop()], dim=1)
+        h = hs.pop()
+        z = zs.pop() if x0 is not None else torch.zeros_like(h)
+        x = torch.cat([x, h, z], dim=1)
         # -- The final pop from `hs` is the input image.
         # -- Most UNets don't have the input on a residual, but this seems like an oversight to me.
 
