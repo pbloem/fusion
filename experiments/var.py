@@ -202,7 +202,7 @@ def train(
 
             gn = gradient_norm(unet)
             if gc > 0.0:
-                nn.utils.clip_grad_norm_(model.parameters(), gc)
+                nn.utils.clip_grad_norm_(unet.parameters(), gc)
 
             opt.step()
 
