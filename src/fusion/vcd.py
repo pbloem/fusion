@@ -174,14 +174,14 @@ class VCUNet(nn.Module):
     def forward(self, x1, t0, t1, x0=None, epsmult=1):
         """
 
-        :param z1: The input to the network. The image corrupted to t1.
-        :param z0: the target of the network. The image corrupted to t0 (that is, to a lesser degree
-           than z1). If None, the network will run in sampling mode, skipping the variational encoder
+        :param x1: The input to the network. The image corrupted to t1.
+        :param x0: the target of the network. The image corrupted to t0 (that is, to a lesser degree
+           than x1). If None, the network will run in sampling mode, skipping the variational encoder
            branch. If given, the image will be encoded into a Gaussian distribution on the latent space.
-        :param t0: The timestamp corresponding to z0
-        :param t1: The timestamp corresponding to z1
-        :return: If z0 is None, a prediction for z0. If z0 is given, a pair consisting of a prediction for
-           z0 and the kl losses for the latent distributions.
+        :param t0: The timestamp corresponding to x0
+        :param t1: The timestamp corresponding to x1
+        :return: If x0 is None, a (diff) prediction for x0. If x0 is given, a pair consisting of a (diff) prediction for
+           x0 and the kl losses for the latent distributions.
         """
 
         x = x1
@@ -198,7 +198,7 @@ class VCUNet(nn.Module):
         x = self.initial(x) # Project up to the first nr. of channels
         if x0 is not None: xvc = x.clone()
 
-        # Encoder branch
+        # Encoder branches
         for mod, vcmod in zip(self.encoder, self.vcencoder):
             if type(mod) == ResBlock:
 
@@ -209,7 +209,8 @@ class VCUNet(nn.Module):
                     xvc, z = vcmod(torch.cat([xvc, x], dim=1), time=time)
                     # -- the vc layer takes the result of the corresponding regular layer into account
                     #    this allows it to easily compute the differences between z_{t-1} and z_t
-                    # -- The second output is the mean. var on the latent space.
+                    # -- The second output is the mean/var on the latent space.
+
                     zs.append(z)
 
             else:
@@ -223,10 +224,10 @@ class VCUNet(nn.Module):
         x = x.reshape(b, -1, *self.mres)
 
         # Decoder branch
-
         if x0 is not None: kl_losses = []
 
         for mod in self.decoder:
+
             if type(mod) == ResBlock:
 
                 h = hs.pop() # The value from the relevant skip connection
