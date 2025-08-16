@@ -221,7 +221,8 @@ def train(
             plotim(xs[2][0], axs[2]); axs[2].set_title('x2')
 
             diff = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1])  # .sigmoid()
-            x1p = xs[2] + diff
+            # x1p = xs[2] + diff
+            x1p = xs[1]
 
             plotim(x1p[0], axs[3]); axs[3].set_title('x1 aug')
 
