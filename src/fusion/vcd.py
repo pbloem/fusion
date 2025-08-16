@@ -241,10 +241,10 @@ class VCUNet(nn.Module):
                     z = zs.pop() # The latent from the VC encoder branch
 
                     assert z.size(1) == 2 * c
-                    # c = z.size(1)
+                    # zc = z.size(1)
 
-                    kl_losses.append(kl_loss(z[:, :c//2, :, :], z[:, c//2:, :, :]))
-                    z = sample(z[:, :c//2, :, :], z[:, c//2:, :, :] * epsmult)
+                    kl_losses.append(kl_loss(z[:, :c, :, :], z[:, c:, :, :]))
+                    z = sample(z[:, :c, :, :], z[:, c:, :, :] * epsmult)
 
                     # print('z', z.size())
                 x = mod(torch.cat([x, h, z], dim=1), time)
