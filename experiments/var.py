@@ -63,7 +63,8 @@ def train(
         epsmult = 1.0, # Multiplier for the variance given by the decoder. Can be used to limit the effect of sampling.
         id = 0,
         cond_do = 0.0, # dropout on the conditional input
-        out_type = 'difference' # 'difference' predict the difference vector between the input and the target, 'target' predict the target directly
+        out_type = 'difference', # 'difference' predict the difference vector between the input and the target, 'target' predict the target directly
+        gc = 1.0,
 ):
 
     """
@@ -198,13 +199,18 @@ def train(
             loss = (rc_loss + curbeta * kls).mean()
 
             loss.backward()
+
+            gn = gradient_norm(model)
+            if gc > 0.0:
+                nn.utils.clip_grad_norm_(model.parameters(), gc)
+
             opt.step()
 
             if wandb:
                 wandb.log({
                     'loss': loss.item(),
                     'kl_loss': sum(kls).mean().item(),
-                    'gradient_norm': gradient_norm(unet),
+                    'gradient_norm': gn,
                     'beta': curbeta,
                 })
 
