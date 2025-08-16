@@ -238,6 +238,7 @@ class VCUNet(nn.Module):
                 else:
                     z = zs.pop() # The latent from the VC encoder branch
 
+                    print(z.size())
                     c = z.size(1); assert c == 2
 
                     kl_losses.append(kl_loss(z[:, :c//2, :, :], z[:, c//2:, :, :]))

@@ -233,7 +233,7 @@ def train(
             plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
             plotim(xs[2][0], axs[2]); axs[2].set_title('x2')
 
-            out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1])  # .sigmoid()
+            out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1]) # .sigmoid()
 
             if out_type == 'difference':
                 x1p = xs[0] + out
