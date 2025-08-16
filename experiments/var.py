@@ -252,7 +252,7 @@ def train(
 
             for i in range(3):
 
-                output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
+                out, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
 
                 if out_type == 'difference':
                     pred = x1p + out
@@ -263,7 +263,7 @@ def train(
                 plotim(pred[0], axs[4 + i]); axs[4 + i].set_title('x0 rec')
 
             for i in range(3):
-                output = unet(x1=x1p, x0=None, t1=ts[1], t0=ts[0])
+                out = unet(x1=x1p, x0=None, t1=ts[1], t0=ts[0])
 
                 if out_type == 'difference':
                     pred = x1p + out
