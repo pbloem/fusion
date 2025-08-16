@@ -221,14 +221,14 @@ def train(
             diff = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1])  # .sigmoid()
             x1p = xs[2] + diff
 
-            plotim(x1p[0], axs[3]); axs[3].set_title('x1 augmented')
+            plotim(x1p[0], axs[3]); axs[3].set_title('x1 aug')
 
             for i in range(3):
 
                 output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
                 pred = x1p + output
 
-                plotim(pred[0], axs[4 + i]); axs[4].set_title('x0 pred')
+                plotim(pred[0], axs[4 + i]); axs[4 + i].set_title('x0 pred')
 
             plt.savefig(path + f'snapshot-{e}.png')
 
