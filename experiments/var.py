@@ -236,7 +236,7 @@ def train(
             out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1]) # .sigmoid()
 
             if out_type == 'difference':
-                x1p = xs[0] + out
+                x1p = xs[2] + out
             elif out_type == 'target':
                 x1p = out
             else:
@@ -253,7 +253,6 @@ def train(
             for i in range(3):
 
                 output, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
-                pred = x1p + output
 
                 if out_type == 'difference':
                     pred = x1p + out
