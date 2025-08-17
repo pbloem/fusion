@@ -229,8 +229,8 @@ def train(
                 # curbeta = beta[0] + (beta[1] - beta[0]) * (instances_seen - beta_sched[0]) / (
                 #             beta_sched[1] - beta_sched[0])
 
-                curbeta = beta[0] + (beta[1] - beta[0])
-                ((instances_seen - beta_sched[0]) / (beta_sched[1] - beta_sched[0]) ) ** beta_p
+                curbeta = beta[0] + (beta[1] - beta[0]) * \
+                    ((instances_seen - beta_sched[0]) / (beta_sched[1] - beta_sched[0]) ) ** beta_p
 
 
         ### Sample
