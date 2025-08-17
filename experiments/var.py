@@ -63,6 +63,7 @@ def train(
         epsmult = 1.0, # Multiplier for the variance given by the decoder. Can be used to limit the effect of sampling.
         id = 0,
         cond_do = 0.0, # dropout on the conditional input
+        cond_noise = 0.0, # Noise added to the conditional input (standard dev)
         out_type = 'difference', # 'difference' predict the difference vector between the input and the target, 'target' predict the target directly
         gc = 1.0,
 ):
@@ -181,6 +182,8 @@ def train(
                 x1p = F.dropout(x1p, p=cond_do)
             if cond_do == 'random':
                 x1p = F.dropout(x1p, p=random.random())
+            if cond_noise > 0.0:
+                x1p += torch.randn_like(x1p) * cond_noise
 
             # Predict x0 from x1p (t1 -> t0)
             output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0], epsmult=epsmult)
@@ -265,6 +268,8 @@ def train(
                 x1p = F.dropout(x1p, p=cond_do)
             if cond_do == 'random':
                 x1p = F.dropout(x1p, p=random.random())
+            if cond_noise > 0.0:
+                x1p += torch.randn_like(x1p) * cond_noise
 
             plotim(x1p[0], axs[3]); axs[3].set_title('x1 aug')
 
