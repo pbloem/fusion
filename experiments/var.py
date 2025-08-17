@@ -53,7 +53,8 @@ def train(
         eval_steps=20,
         dres=8,             # resolution of the tiles in the degradation
         beta=(0.0,1.0),
-        beta_sched=(60_000, 180_000),
+        beta_sched = (60_000, 180_000),
+        beta_p = 1.0,  # exponent of the beta schedule (> 1 smooths out the initial values)
         name='vcd',
         debug=False,
         time_emb=512,
@@ -225,8 +226,12 @@ def train(
             instances_seen += b
 
             if beta_sched[0] < instances_seen < beta_sched[1]:
-                curbeta = beta[0] + (beta[1] - beta[0]) * (instances_seen - beta_sched[0]) / (
-                            beta_sched[1] - beta_sched[0])
+                # curbeta = beta[0] + (beta[1] - beta[0]) * (instances_seen - beta_sched[0]) / (
+                #             beta_sched[1] - beta_sched[0])
+
+                curbeta = beta[0] + (beta[1] - beta[0])
+                ((instances_seen - beta_sched[0]) / (beta_sched[1] - beta_sched[0]) ) ** beta_p
+
 
         ### Sample
 
