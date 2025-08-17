@@ -62,6 +62,7 @@ def train(
         sched = 'uniform',
         p = 1.0,      # Exponent for sampling the time offsets. >1.0 makes time values near the target value more likely
         epsmult = 1.0, # Multiplier for the variance given by the decoder. Can be used to limit the effect of sampling.
+        epsmult_aug=1.0,  # Used in generating x1p
         id = 0,
         cond_do = 0.0, # dropout on the conditional input
         cond_noise = 0.0, # Noise added to the conditional input (standard dev)
@@ -165,7 +166,7 @@ def train(
 
             # Sample one step to augment the data (t2 -> t1)
             with torch.no_grad():
-                out = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1]) #.sigmoid()
+                out = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1], epsmult=epsmult_aug) #.sigmoid()
 
                 if out_type == 'difference':
                     x1p = xs[2] + out
@@ -259,7 +260,7 @@ def train(
             plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
             plotim(xs[2][0], axs[2]); axs[2].set_title('x2')
 
-            out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1]) # .sigmoid()
+            out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1], epsmult=epsmult_aug) # .sigmoid()
 
             if out_type == 'difference':
                 x1p = xs[2] + out
@@ -309,20 +310,22 @@ def train(
                 plt.figure(figsize=(4, 4))
 
                 # plot a bunch of samples
-                ims = torch.randn(size=(sample_bs, c, h, w), device=d())
+                ims = torch.zeros(size=(sample_bs, c, h, w), device=d())
                 ims = batch(ims, op=tile, t=1.0, nh=dres, nw=dres, fv=fv)
 
                 steps = dres**2
                 delta = 1.0 / steps
                 n = 0
                 for t in (1 - torch.arange(delta, 1, 1/steps)):
+                    griddle(ims, path + f'denoised-{e}-{n:05}.png')
 
                     texp = t.expand((ims.size(0),)).to(d())
                     diff = unet(x1=ims, x0=None, t0=texp-delta, t1=texp) #.sigmoid()
                     ims = ims + diff
 
                     n += 1
-                    griddle(ims, path + f'denoised-{e}-{n:05}.png')
+
+                griddle(ims, path + f'denoised-{e}-{n:05}.png')
 
     return {'last loss' : loss, 'ema loss': runloss}
 
