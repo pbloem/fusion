@@ -254,7 +254,6 @@ def train(
 
             for i, ts in enumerate(triples):
                 print(ts)
-                exit()
 
                 btch = btch[torch.randperm(btch.size(0))]
 
