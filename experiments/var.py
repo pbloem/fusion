@@ -263,14 +263,13 @@ def train(
                 # p = max//2
                 # ts = (p-1)/max, p/max, (p+1)/max
 
-                max = dres ** 2
                 xs = [batch(btch.to(d()), op=tile, t=t.item(), nh=dres, nw=dres, fv=fv) for t in ts]
 
                 plotim(xs[0][0], axs[0]); axs[0].set_title('x0')
                 plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
                 plotim(xs[2][0], axs[2]); axs[2].set_title('x2')
 
-                out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1], epsmult=epsmult_aug) # .sigmoid()
+                out = unet(x1=xs[2], x0=None, t1=ts[2].item(), t0=ts[1].item(), epsmult=epsmult_aug) # .sigmoid()
 
                 if out_type == 'difference':
                     x1p = xs[2] + out
@@ -291,7 +290,7 @@ def train(
 
                 for i in range(3):
 
-                    out, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
+                    out, kls = unet(x1=x1p, x0=xs[0], t1=ts[1].item(), t0=ts[0].item())
 
                     if out_type == 'difference':
                         pred = x1p + out
@@ -302,7 +301,7 @@ def train(
                     plotim(pred[0], axs[4 + i]); axs[4 + i].set_title('x0 rec')
 
                 for i in range(3):
-                    out = unet(x1=x1p, x0=None, t1=ts[1], t0=ts[0])
+                    out = unet(x1=x1p, x0=None, t1=ts[1].item(), t0=ts[0].item())
 
                     if out_type == 'difference':
                         pred = x1p + out
