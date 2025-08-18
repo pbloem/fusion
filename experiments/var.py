@@ -245,7 +245,7 @@ def train(
 
             tzero = torch.tensor( [[(max/2 - 2)/max, (max/2 -1)/max, 0.5 ]] )
 
-            t = torch.rand(size=(1, 3), device=d())
+            t = torch.rand(size=(1, 3), device='cpu')
             t[:, 1:] **= p  # adjust to make nearby points more likely`
             t[:, 1] = t[:, 1] * (1 - t[:, 0]) + t[:, 0]
             t[:, 2] = t[:, 2] * (1 - t[:, 1]) + t[:, 1]
