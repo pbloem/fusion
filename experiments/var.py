@@ -253,8 +253,7 @@ def train(
             triples = torch.cat([tzero, t], dim=0)
 
             for i, ts in enumerate(triples):
-                ts = (ts[0].item(), ts[1].item(), ts[2].item())
-                print(ts)
+                # print(ts)
 
                 btch = btch[torch.randperm(btch.size(0))]
 
@@ -263,7 +262,7 @@ def train(
 
                 # p = max//2
                 # ts = (p-1)/max, p/max, (p+1)/max
-
+                ts = [torch.tensor(t.item(), device=d()).expand((btch.size(0),)) for t in ts]
                 xs = [batch(btch.to(d()), op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
 
                 plotim(xs[0][0], axs[0]); axs[0].set_title('x0')
