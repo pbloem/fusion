@@ -264,7 +264,7 @@ def train(
                 # ts = (p-1)/max, p/max, (p+1)/max
 
                 max = dres ** 2
-                xs = [batch(btch.to(d()), op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
+                xs = [batch(btch.to(d()), op=tile, t=t.item(), nh=dres, nw=dres, fv=fv) for t in ts]
 
                 plotim(xs[0][0], axs[0]); axs[0].set_title('x0')
                 plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
