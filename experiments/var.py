@@ -252,7 +252,7 @@ def train(
 
             triples = torch.cat([tzero, t], dim=0)
 
-            for i, ts in enumerate(triples):
+            for k, ts in enumerate(triples):
                 # print(ts)
 
                 btch = btch[torch.randperm(btch.size(0))]
@@ -312,7 +312,7 @@ def train(
                     plotim(pred[0], axs[7 + i])
                     axs[7 + i].set_title('x0 pred')
 
-                plt.savefig(path + f'snapshot-{e}-{i}.png')
+                plt.savefig(path + f'snapshot-{e}-{k}.png')
 
             if sched != 'fixed':
 
