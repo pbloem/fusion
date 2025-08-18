@@ -241,69 +241,83 @@ def train(
 
         with torch.no_grad():
 
-            btch = btch[torch.randperm(btch.size(0))]
-
-            # plot an illustration of the sampling process
-            fig, axs = plt.subplots(nrows=1, ncols=10, figsize=(14, 2))
-
-            # max = dres ** 2
-            # p = max//2
-            # ts = (p-1)/max, p/max, (p+1)/max
-
             max = dres ** 2
-            ts = (max/2 - 2)/max, (max/2 -1)/max, 0.5
 
-            ts = [torch.tensor(t, device=d()).expand((btch.size(0),)) for t in ts]
-            xs = [batch(btch.to(d()), op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
+            tzero = torch.tensor( [[(max/2 - 2)/max, (max/2 -1)/max, 0.5 ]] )
 
-            plotim(xs[0][0], axs[0]); axs[0].set_title('x0')
-            plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
-            plotim(xs[2][0], axs[2]); axs[2].set_title('x2')
+            t = torch.rand(size=(1, 3), device=d())
+            t[:, 1:] **= p  # adjust to make nearby points more likely`
+            t[:, 1] = t[:, 1] * (1 - t[:, 0]) + t[:, 0]
+            t[:, 2] = t[:, 2] * (1 - t[:, 1]) + t[:, 1]
 
-            out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1], epsmult=epsmult_aug) # .sigmoid()
+            triples = torch.cat([tzero, t], dim=0)
 
-            if out_type == 'difference':
-                x1p = xs[2] + out
-            elif out_type == 'target':
-                x1p = out
-            else:
-                fc(out_type, 'out_type')
+            for i, (t0, t1, t2) in enumerate(triples):
 
-            # Apply dropout to x1p
-            if type(cond_do) == float and cond_do > 0.0:
-                x1p = F.dropout(x1p, p=cond_do)
-            if cond_do == 'random':
-                x1p = F.dropout(x1p, p=random.random())
-            if cond_noise > 0.0:
-                x1p += torch.randn_like(x1p) * cond_noise
+                btch = btch[torch.randperm(btch.size(0))]
 
-            plotim(x1p[0], axs[3]); axs[3].set_title('x1 aug')
+                # plot an illustration of the sampling process
+                fig, axs = plt.subplots(nrows=1, ncols=10, figsize=(14, 2))
 
-            for i in range(3):
+                # p = max//2
+                # ts = (p-1)/max, p/max, (p+1)/max
 
-                out, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
+                max = dres ** 2
 
-                if out_type == 'difference':
-                    pred = x1p + out
-                elif out_type == 'target':
-                    pred = out
-                else: fc(out_type, 'out_type')
+                # TODO: Plot the same for some random time triples. A bigger gap between t2 and t1 should
+                #       lead to more interesting variation.
 
-                plotim(pred[0], axs[4 + i]); axs[4 + i].set_title('x0 rec')
+                ts = [torch.tensor(t, device=d()).expand((btch.size(0),)) for t in ts]
+                xs = [batch(btch.to(d()), op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
 
-            for i in range(3):
-                out = unet(x1=x1p, x0=None, t1=ts[1], t0=ts[0])
+                plotim(xs[0][0], axs[0]); axs[0].set_title('x0')
+                plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
+                plotim(xs[2][0], axs[2]); axs[2].set_title('x2')
+
+                out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1], epsmult=epsmult_aug) # .sigmoid()
 
                 if out_type == 'difference':
-                    pred = x1p + out
+                    x1p = xs[2] + out
                 elif out_type == 'target':
-                    pred = out
-                else: fc(out_type, 'out_type')
+                    x1p = out
+                else:
+                    fc(out_type, 'out_type')
 
-                plotim(pred[0], axs[7 + i])
-                axs[7 + i].set_title('x0 pred')
+                # Apply dropout to x1p
+                if type(cond_do) == float and cond_do > 0.0:
+                    x1p = F.dropout(x1p, p=cond_do)
+                if cond_do == 'random':
+                    x1p = F.dropout(x1p, p=random.random())
+                if cond_noise > 0.0:
+                    x1p += torch.randn_like(x1p) * cond_noise
 
-            plt.savefig(path + f'snapshot-{e}.png')
+                plotim(x1p[0], axs[3]); axs[3].set_title('x1 aug')
+
+                for i in range(3):
+
+                    out, kls = unet(x1=x1p, x0=xs[0], t1=ts[1], t0=ts[0])
+
+                    if out_type == 'difference':
+                        pred = x1p + out
+                    elif out_type == 'target':
+                        pred = out
+                    else: fc(out_type, 'out_type')
+
+                    plotim(pred[0], axs[4 + i]); axs[4 + i].set_title('x0 rec')
+
+                for i in range(3):
+                    out = unet(x1=x1p, x0=None, t1=ts[1], t0=ts[0])
+
+                    if out_type == 'difference':
+                        pred = x1p + out
+                    elif out_type == 'target':
+                        pred = out
+                    else: fc(out_type, 'out_type')
+
+                    plotim(pred[0], axs[7 + i])
+                    axs[7 + i].set_title('x0 pred')
+
+                plt.savefig(path + f'snapshot-{e}-{i}.png')
 
             if sched != 'fixed':
 
