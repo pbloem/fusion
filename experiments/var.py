@@ -252,7 +252,7 @@ def train(
 
             triples = torch.cat([tzero, t], dim=0)
 
-            for i, (t0, t1, t2) in enumerate(triples):
+            for i, ts in enumerate(triples):
 
                 btch = btch[torch.randperm(btch.size(0))]
 
@@ -263,11 +263,6 @@ def train(
                 # ts = (p-1)/max, p/max, (p+1)/max
 
                 max = dres ** 2
-
-                # TODO: Plot the same for some random time triples. A bigger gap between t2 and t1 should
-                #       lead to more interesting variation.
-
-                ts = [torch.tensor(t, device=d()).expand((btch.size(0),)) for t in ts]
                 xs = [batch(btch.to(d()), op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
 
                 plotim(xs[0][0], axs[0]); axs[0].set_title('x0')
