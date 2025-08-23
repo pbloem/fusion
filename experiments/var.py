@@ -10,6 +10,8 @@ from torch import nn
 import torch.nn.functional as F
 import torch.distributions as dst
 
+from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
+
 import torchvision
 import torchvision.transforms as transforms
 from torchvision.utils import make_grid
@@ -100,7 +102,7 @@ def train(
 
     if ema > -1:
         unet = AveragedModel(model,
-                        torch.optim.swa_utils.get_ema_multi_avg_fn(ema),
+                        get_ema_multi_avg_fn(ema),
                         use_buffers=True)
 
     if torch.cuda.is_available():
