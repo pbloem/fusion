@@ -68,6 +68,7 @@ def train(
         cond_noise = 0.0, # Noise added to the conditional input (standard dev)
         out_type = 'difference', # 'difference' predict the difference vector between the input and the target, 'target' predict the target directly
         gc = 1.0,
+        ema=-1
 ):
 
     """
@@ -96,6 +97,11 @@ def train(
 
     unet = fusion.VCUNet(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level,
                          mid_layers=3, time_emb=time_emb)
+
+    if ema > -1:
+        unet = AveragedModel(model,
+                        torch.optim.swa_utils.get_ema_multi_avg_fn(ema),
+                        use_buffers=True)
 
     if torch.cuda.is_available():
         unet = unet.cuda()
