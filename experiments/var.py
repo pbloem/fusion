@@ -101,7 +101,7 @@ def train(
                          mid_layers=3, time_emb=time_emb)
 
     if ema > -1:
-        unet = AveragedModel(model,
+        unet = AveragedModel(unet,
                         get_ema_multi_avg_fn(ema),
                         use_buffers=True)
 
