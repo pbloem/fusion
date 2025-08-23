@@ -100,13 +100,13 @@ def train(
     unet = fusion.VCUNet(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level,
                          mid_layers=3, time_emb=time_emb)
 
+    if torch.cuda.is_available():
+        unet = unet.cuda()
+
     if ema > -1:
         unet = AveragedModel(unet,
                         get_ema_multi_avg_fn(ema),
                         use_buffers=True)
-
-    if torch.cuda.is_available():
-        unet = unet.cuda()
 
     if dp:
         unet = torch.nn.DataParallel(unet)
