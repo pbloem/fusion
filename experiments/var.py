@@ -105,8 +105,7 @@ def train(
 
     if ema > -1:
         unet = AveragedModel(unet,
-                        get_ema_multi_avg_fn(ema),
-                        device=d(), # required to pass due to bug with def value
+                        avg_fn=get_ema_multi_avg_fn(ema),
                         use_buffers=True)
 
     if dp:
