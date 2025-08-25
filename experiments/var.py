@@ -199,6 +199,9 @@ def train(
             output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0], epsmult=epsmult)
             # output = output.sigmoid()
 
+            if wandb:
+                wandb.log({ f'kl-i{i}-elem{nl.numel()}' : kl.sum() for i, kl in enumerate(kls) })
+
             if out_type == 'difference':
                 target = xs[0] - x1p # predict the delta between x0 and x1p
             elif out_type == 'target':
