@@ -201,7 +201,7 @@ def train(
             # output = output.sigmoid()
 
             if kl_prep:
-                kls = [kl // (kl.numel()//b) for kl in kls]
+                kls = [kl // (kl.numel().item()//b) for kl in kls]
 
             if wandb:
                 wandb.log({ f'kls/kl-i{i}-elem{kl.numel()//b}' : kl.sum() for i, kl in enumerate(kls) })
