@@ -70,7 +70,8 @@ def train(
         cond_noise = 0.0, # Noise added to the conditional input (standard dev)
         out_type = 'difference', # 'difference' predict the difference vector between the input and the target, 'target' predict the target directly
         gc = 1.0,
-        ema=-1
+        ema=-1,
+        kl_prep=False,
 ):
 
     """
@@ -199,8 +200,11 @@ def train(
             output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0], epsmult=epsmult)
             # output = output.sigmoid()
 
+            if kl_prep:
+                kls = [kl // (kl.numlel()//b) for kl in kls]
+
             if wandb:
-                wandb.log({ f'kl-i{i}-elem{kl.numel()//b}' : kl.sum() for i, kl in enumerate(kls) })
+                wandb.log({ f'kls/kl-i{i}-elem{kl.numel()//b}' : kl.sum() for i, kl in enumerate(kls) })
 
             if out_type == 'difference':
                 target = xs[0] - x1p # predict the delta between x0 and x1p
