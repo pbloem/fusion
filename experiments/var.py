@@ -200,7 +200,7 @@ def train(
             # output = output.sigmoid()
 
             if wandb:
-                wandb.log({ f'kl-i{i}-elem{nkl.numel()//b}' : kl.sum() for i, kl in enumerate(kls) })
+                wandb.log({ f'kl-i{i}-elem{kl.numel()//b}' : kl.sum() for i, kl in enumerate(kls) })
 
             if out_type == 'difference':
                 target = xs[0] - x1p # predict the delta between x0 and x1p
