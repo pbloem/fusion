@@ -2,7 +2,7 @@ import fusion
 from fusion import tile, batch
 from fusion.tools import here, d, fc, gradient_norm, tic, toc, prod, data
 
-import fire, math
+import fire, math, os
 import random
 
 import torch
