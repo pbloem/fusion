@@ -78,6 +78,10 @@ def train(
     Variational cold diffusion
     """
 
+    # Print pwd, and add to locals()
+    pwd = os.getcwd()
+    print('pwd', pwd)
+
     if wandb is not None:
         wd = wandb.init(
             name = name,
@@ -228,6 +232,7 @@ def train(
 
             if wandb:
                 wandb.log({
+                    'rec_loss': rc_loss.mean().item(),
                     'loss': loss.item(),
                     'kl_loss': sum(kls).mean().item(),
                     'gradient_norm': gn,
