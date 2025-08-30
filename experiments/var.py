@@ -182,7 +182,7 @@ def train(
 
             # Sample one step to augment the data (t2 -> t1)
             with contextlib.nullcontext() if train_aug else torch.no_grad():
-                out = unet(x1=xs[2], x0=xs[1], t1=t[:, 2], t0=t[:, 1], mix_latent=aug_mix) #.sigmoid()
+                out, _ = unet(x1=xs[2], x0=xs[1], t1=t[:, 2], t0=t[:, 1], mix_latent=aug_mix) #.sigmoid()
 
                 if out_type == 'difference':
                     x1p = xs[2] + out
