@@ -63,8 +63,6 @@ def train(
         sample_mix = 1.0, # how much of the batch to augment
         sched = 'uniform',
         p = 1.0,      # Exponent for sampling the time offsets. >1.0 makes time values near the target value more likely
-        epsmult = 1.0, # Multiplier for the variance given by the decoder. Can be used to limit the effect of sampling.
-        epsmult_aug=1.0,  # Used in generating x1p
         id = 0,
         cond_do = 0.0, # dropout on the conditional input
         cond_noise = 0.0, # Noise added to the conditional input (standard dev)
@@ -204,7 +202,7 @@ def train(
                 x1p += torch.randn_like(x1p) * cond_noise
 
             # Predict x0 from x1p (t1 -> t0)
-            output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0], epsmult=epsmult)
+            output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0])
             # output = output.sigmoid()
 
             if kl_prep:
@@ -298,7 +296,7 @@ def train(
                 plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
                 plotim(xs[2][0], axs[2]); axs[2].set_title('x2')
 
-                out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1], epsmult=epsmult_aug) # .sigmoid()
+                out = unet(x1=xs[2], x0=None, t1=ts[2], t0=ts[1]) # .sigmoid()
 
                 if out_type == 'difference':
                     x1p = xs[2] + out
