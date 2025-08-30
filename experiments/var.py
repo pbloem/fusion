@@ -2,7 +2,7 @@ import fusion
 from fusion import tile, batch
 from fusion.tools import here, d, fc, gradient_norm, tic, toc, prod, data
 
-import fire, math, os
+import fire, math, os, contextlib
 import random
 
 import torch
@@ -72,6 +72,7 @@ def train(
         gc = 1.0,
         ema=-1,
         kl_prep=False,
+        train_aug=False,
 ):
 
     """
@@ -178,7 +179,7 @@ def train(
             xs = [batch(btch, op=tile, t=t[:, i], nh=dres, nw=dres, fv=fv) for i in range(3)]
 
             # Sample one step to augment the data (t2 -> t1)
-            with torch.no_grad():
+            with contextlib.nullcontext() if train_aug else torch.no_grad():
                 out = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1], epsmult=epsmult_aug) #.sigmoid()
 
                 if out_type == 'difference':
