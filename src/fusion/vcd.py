@@ -171,7 +171,7 @@ class VCUNet(nn.Module):
             nn.Linear(time_emb * 2, time_emb),
         )
 
-    def forward(self, x1, t0, t1, x0=None, epsmult=1):
+    def forward(self, x1, t0, t1, x0=None, mix_latent=1.0):
         """
 
         :param x1: The input to the network. The image corrupted to t1.
@@ -233,8 +233,8 @@ class VCUNet(nn.Module):
                 c = h.size(1)
                 # print('h', h.size())
 
-                if x0 is None:
-                    b, _ , height, width = h.size()
+                b, _, height, width = h.size()
+                if x0 is None: # sample
                     z = torch.randn(size=(b, c, height, width), device=d()) # sample from the standard Gaussian
                 else:
                     z = zs.pop() # The latent from the VC encoder branch
@@ -243,9 +243,13 @@ class VCUNet(nn.Module):
                     # zc = z.size(1)
 
                     kl_losses.append(kl_loss(z[:, :c, :, :], z[:, c:, :, :]))
-                    z = sample(z[:, :c, :, :], z[:, c:, :, :] * epsmult)
+                    z = sample(z[:, :c, :, :], z[:, c:, :, :])
 
-                    # print('z', z.size())
+                    if mix_latent < 1.0:
+                        zp = torch.randn(size=(b, c, height, width), device=d()) # sample from the standard Gaussian
+
+                        z = z * mix_latent + zp * (1. - mix_latent)
+
                 x = mod(torch.cat([x, h, z], dim=1), time)
             else:
                 x = mod(x)

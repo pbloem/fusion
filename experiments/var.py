@@ -73,6 +73,8 @@ def train(
         ema=-1,
         kl_prep=False,
         train_aug=False,
+        # beta_temp=0.0, # Only apply KL loss to the latent with the largest magnitude.
+        aug_mix=0.0, # How much of the latent for x1 to mix in in the augmentation (0=none, 1=pass through)
 ):
 
     """
@@ -180,7 +182,7 @@ def train(
 
             # Sample one step to augment the data (t2 -> t1)
             with contextlib.nullcontext() if train_aug else torch.no_grad():
-                out = unet(x1=xs[2], x0=None, t1=t[:, 2], t0=t[:, 1], epsmult=epsmult_aug) #.sigmoid()
+                out = unet(x1=xs[2], x0=xs[1], t1=t[:, 2], t0=t[:, 1], mix_latent=aug_mix) #.sigmoid()
 
                 if out_type == 'difference':
                     x1p = xs[2] + out
@@ -219,6 +221,12 @@ def train(
                 fc(out_type, 'out_type')
 
             rc_loss = ((output - target) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
+
+            # kls = torch.cat([kl.reshape(b, -1) for kl in kls], dim=0)
+            # weights = (kls.detach() * beta_temp).softmax(dim=-1) # -- weigh KLS proportional to relative magnitude, for
+            #                                                      #    adversarial setting of beta balance
+            # kls = kls * weights
+
             kls = sum(kl.reshape(b, -1).sum(dim=-1) for kl in kls)
 
             loss = (rc_loss + curbeta * kls).mean()
