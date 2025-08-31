@@ -64,7 +64,7 @@ def train(
 ):
 
     """
-    Variational cold diffusion
+    StyleVAE with augmentation.
     """
 
     # Print pwd, and add to locals()
@@ -128,17 +128,18 @@ def train(
 
             if augment:
                 with torch.no_grad():
+                    abtch = btch.clone()
                     augd, _ = unet(x=btch, mix=augment_mix)
 
                     sel = torch.rand(size=(b,), device=d()) < augment_prob
-                    btch[~ sel] = augd[~ sel] # augment with probability augment_prob
+                    abtch[~ sel] = augd[~ sel] # augment with probability augment_prob
 
                     # -- We augment the data by passing it through the VAE and using a (convex) mixture of the latent
                     #    code and a random latent code. This means that there is information about the original image,
                     #    which the VAE can recover, but we also introduce artifacts that are common to the current
                     #    generation of the model
 
-            output, kls = unet(x=btch)
+            output, kls = unet(x=abtch)
 
             rc_loss = ((output - btch) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
             # try continuous bernoulli?
