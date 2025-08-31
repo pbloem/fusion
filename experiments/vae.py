@@ -62,6 +62,7 @@ def train(
         augment_mix=None,
         augment_prob=0.5,
         augment_from=0, # Start augmenting after this many instances
+        beta_temp=0.0,
 ):
 
     """
@@ -153,7 +154,12 @@ def train(
             rc_loss = ((output - btch) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
             # try continuous bernoulli?
 
-            kls = sum(kl.reshape(b, -1).sum(dim=-1) for kl in kls)
+            # kls = sum(kl.reshape(b, -1).sum(dim=-1) for kl in kls)
+            kls = torch.cat([kl.reshape(b, -1).sum(dim=-1, keepdim=True) for kl in kls], dim=1)
+            weights = (kls.detach() * beta_temp).softmax(dim=-1) # -- weigh KLS proportional to relative magnitude, for
+                                                                 #    adversarial setting of beta balance
+            assert kls.size() == weights.size()
+            kls = (kls * weights).sum(dim=-1)
 
             loss = (rc_loss + curbeta * kls).mean()
 
