@@ -405,7 +405,7 @@ class VAE(nn.Module):
         # Final convolution down to the required number of output channels
         self.final = nn.Conv2d(channels[0], 3, kernel_size=1, padding=0)
 
-    def forward(self, x=None, num=None, mix=1.0):
+    def forward(self, x=None, num=None, mix=None):
         """
         :param x1: The input to the network. The image corrupted to t1.
         :param x0: the target of the network. The image corrupted to t0 (that is, to a lesser degree
@@ -446,8 +446,11 @@ class VAE(nn.Module):
             kl_losses.append(kl_loss(z[:, :c], z[:, c:]))
             z = sample(z[:, :c], z[:, c:])
 
-            if mix < 1.0:
-                z = mix * z + (1. - mix) * torch.randn_like(z)
+            if mix is not None:
+                if type(mix) is torch.Tensor:
+                    emix = expand_as_right(mix, z)
+
+                z = emix * z + (1. - emix) * torch.randn_like(z)
 
         else: # Sample the middle latent
             b = num
@@ -472,8 +475,11 @@ class VAE(nn.Module):
                     kl_losses.append(kl_loss(z[:, :c, :, :], z[:, c:, :, :]))
                     z = sample(z[:, :c, :, :], z[:, c:, :, :])
 
-                    if mix < 1.0:
-                        z = mix * z + (1. - mix) * torch.randn_like(z)
+                    if mix is not None:
+                        if type(mix) is torch.Tensor:
+                            emix = expand_as_right(mix, z)
+
+                        z = emix * z + (1. - emix) * torch.randn_like(z)
                 else: # sample
                     z = torch.randn(size=(b, c, height, width), device=d())
 
@@ -484,3 +490,12 @@ class VAE(nn.Module):
         if not run_enc:
             return self.final(x)
         return self.final(x), kl_losses
+
+def expand_as_right(x, y):
+    """
+    Expand x as y, but insert any extra dimensions at the back not the front.
+    :return:
+    """
+    while (len(x.size()) < len(y.size())):
+        x = x.unsqueeze(-1)
+    return x.expand_as(y)

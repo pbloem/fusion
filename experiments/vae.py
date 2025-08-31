@@ -59,9 +59,9 @@ def train(
         gc=1.0,
         ema=-1,
         augment=False,
-        augment_mix=0.5,
-        augment_prob=1.0,
-        augment_from=120_000, # Start augmenting after this many instances
+        augment_mix=None,
+        augment_prob=0.5,
+        augment_from=0, # Start augmenting after this many instances
 ):
 
     """
@@ -130,7 +130,13 @@ def train(
             if augment and instances_seen > augment_from :
                 with torch.no_grad():
                     abtch = btch.clone()
-                    augd, _ = unet(x=btch, mix=augment_mix)
+
+                    if augment_mix is None:
+                        augment_mix_ = torch.rand(size=(b,), device=d())
+                    else:
+                        augment_mix_ = augment_mix
+
+                    augd, _ = unet(x=btch, mix=augment_mix_)
 
                     sel = torch.rand(size=(b,), device=d()) < augment_prob
                     abtch[~ sel] = augd[~ sel] # augment with probability augment_prob
@@ -201,7 +207,13 @@ def train(
 
             # 8 examples of augmentation
             btch = btch[torch.randperm(btch.size(0))][:8]
-            out, _ = unet(btch, mix=augment_mix)
+
+            if augment_mix is None:
+                augment_mix_ = torch.rand(size=(8,), device=d())
+            else:
+                augment_mix_ = augment_mix
+
+            out, _ = unet(btch, mix=augment_mix_)
             ims = torch.cat([btch, out], dim=0)
             griddle(ims, path + f'augment-{e}-{n:05}.png', nrow=8)
 
