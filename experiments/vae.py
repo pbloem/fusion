@@ -193,6 +193,12 @@ def train(
             ims = unet(num=16) # sample 16 images
             griddle(ims, path + f'samples-{e}-{n:05}.png')
 
+            plot_at = set([2,5,10,50,100])
+            for i in range(max(plot_at)):
+                ims, _ = unet(x=ims)
+                if i in plot_at:
+                    griddle(ims, path + f'samples-{e}-{n:05}-it{i}.png')
+
             # 8 examples of augmentation
             btch = btch[torch.randperm(btch.size(0))][:8]
             out, _ = unet(btch, mix=augment_mix)
