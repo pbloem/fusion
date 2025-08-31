@@ -139,6 +139,8 @@ def train(
                     #    code and a random latent code. This means that there is information about the original image,
                     #    which the VAE can recover, but we also introduce artifacts that are common to the current
                     #    generation of the model
+            else:
+                abtch = btch
 
             output, kls = unet(x=abtch)
 
