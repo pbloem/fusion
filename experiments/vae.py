@@ -61,6 +61,7 @@ def train(
         augment=False,
         augment_mix=0.5,
         augment_prob=1.0,
+        augment_from=120_000, # Start augmenting after this many instances
 ):
 
     """
@@ -126,7 +127,7 @@ def train(
 
             b, c, h, w = btch.size()
 
-            if augment:
+            if augment and instances_seen > augment_from :
                 with torch.no_grad():
                     abtch = btch.clone()
                     augd, _ = unet(x=btch, mix=augment_mix)
