@@ -58,6 +58,9 @@ def train(
         debug=False,
         gc=1.0,
         ema=-1,
+        augment=False,
+        augment_mix=0.5,
+        augment_prob=1.0,
 ):
 
     """
@@ -123,6 +126,18 @@ def train(
 
             b, c, h, w = btch.size()
 
+            if augment:
+                with torch.no_grad():
+                    augd, _ = unet(x=btch, mix=augment_mix)
+
+                    sel = torch.rand(size=(b,), device=d()) < augment_prob
+                    btch[~ sel] = augd[~ sel] # augment with probability augment_prob
+
+                    # -- We augment the data by passing it through the VAE and using a (convex) mixture of the latent
+                    #    code and a random latent code. This means that there is information about the original image,
+                    #    which the VAE can recover, but we also introduce artifacts that are common to the current
+                    #    generation of the model
+
             output, kls = unet(x=btch)
 
             rc_loss = ((output - btch) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
@@ -170,8 +185,15 @@ def train(
 
         with torch.no_grad():
 
+            # 16 random samples
             ims = unet(num=16) # sample 16 images
             griddle(ims, path + f'samples-{e}-{n:05}.png')
+
+            # 8 examples of augmentation
+            btch = btch[torch.randperm(btch.size(0))][:8]
+            out, _ = unet(btch, mix=augment_mix)
+            ims = torch.cat([btch, out], dim=0)
+            griddle(ims, path + f'augment-{e}-{n:05}.png', nrow=8)
 
     return {'last loss' : loss, 'ema loss': runloss}
 
@@ -179,8 +201,8 @@ def plotim(im, ax):
     ax.imshow(im.permute(1, 2, 0).cpu().clip(0, 1))
     ax.axis('off')
 
-def griddle(btch, file):
-    grid = make_grid(btch.cpu().clip(0, 1), nrow=4).permute(1, 2, 0)
+def griddle(btch, file, nrow=4):
+    grid = make_grid(btch.cpu().clip(0, 1), nrow=nrow).permute(1, 2, 0)
     plt.imshow(grid)
     plt.gca().axis('off')
     plt.savefig(file)

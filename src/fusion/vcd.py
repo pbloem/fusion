@@ -405,7 +405,7 @@ class VAE(nn.Module):
         # Final convolution down to the required number of output channels
         self.final = nn.Conv2d(channels[0], 3, kernel_size=1, padding=0)
 
-    def forward(self, x=None, num=None):
+    def forward(self, x=None, num=None, mix=1.0):
         """
         :param x1: The input to the network. The image corrupted to t1.
         :param x0: the target of the network. The image corrupted to t0 (that is, to a lesser degree
@@ -446,9 +446,13 @@ class VAE(nn.Module):
             kl_losses.append(kl_loss(z[:, :c], z[:, c:]))
             z = sample(z[:, :c], z[:, c:])
 
+            if mix < 1.0:
+                z = mix * z + (1. - mix) * torch.randn_like(z)
+
         else: # Sample the middle latent
             b = num
             z = torch.randn(b, self.h, device=d())
+
 
         # Decoder branch
         x = self.midblock_dec(z) + z
@@ -460,15 +464,18 @@ class VAE(nn.Module):
             if type(mod) == ResBlockNT:
                 b, c, height, width = x.size()
 
-                if not run_enc: # sample
-                    z = torch.randn(size=(b, c, height, width), device=d())
-                else:
+                if run_enc:
                     z = zs.pop() # The latent from the encoder
 
                     assert z.size(1) == 2 * c
 
                     kl_losses.append(kl_loss(z[:, :c, :, :], z[:, c:, :, :]))
                     z = sample(z[:, :c, :, :], z[:, c:, :, :])
+
+                    if mix < 1.0:
+                        z = mix * z + (1. - mix) * torch.randn_like(z)
+                else: # sample
+                    z = torch.randn(size=(b, c, height, width), device=d())
 
                 x = mod(torch.cat([x, z], dim=1))
             else:
