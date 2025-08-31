@@ -448,7 +448,7 @@ class VAE(nn.Module):
 
         else: # Sample the middle latent
             b = num
-            z = torch.randn(b, self.h)
+            z = torch.randn(b, self.h, device=d())
 
         # Decoder branch
         x = self.midblock_dec(z) + z
