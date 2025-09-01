@@ -416,6 +416,7 @@ class VAE(nn.Module):
         """
 
         run_enc = x is not None
+        zdo = None if zdo is None else list(zdo)
 
         # Encoder branch
 
