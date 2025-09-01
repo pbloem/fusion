@@ -460,7 +460,7 @@ class VAE(nn.Module):
 
         else: # Sample the middle latent
             b = num
-            z = torch.randn(b, self.h, device=d())
+            z = torch.randn(b, self.mid_latent, device=d())
 
         if zdo is not None:
             z = F.dropout(z, p=zdo.pop(0)) # NB these are applied in eval as well.
