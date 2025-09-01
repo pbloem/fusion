@@ -173,6 +173,9 @@ def train(
         beta_temp=0.0,
         beta_weights=None,
         latent_dropouts=None,
+        zdo_dynamic=False,
+        zdo_range=180_000, # over how many instances to change a given z-dropout from 0 to 1
+        zdo_start=180_000, # After how many instances to start the z-dropout schedule.
         loss_type='dist',
         altmodel=False,
         alt_latent=128,
@@ -207,10 +210,19 @@ def train(
 
     if not altmodel:
         model = fusion.VAE(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level,
-                         mid_layers=3, latent_dropouts=latent_dropouts)
+                         mid_layers=3)
+
+        numzs = blocks_per_level * len(unet_channels) + 1 # nr of latent connections
     else:
         model = AltModel(latent_size=alt_latent, convs=alt_convs)
+        numzs = 1
         # Simpler architecture(s) for debugging.
+
+    if zdo_dynamic:
+        latent_dropouts = [0.0] * numzs
+        latent_dropouts[0] = 1.0
+
+        zdo_delta = 1/zdo_range
 
     if torch.cuda.is_available():
         model = model.cuda()
@@ -235,6 +247,7 @@ def train(
     curbeta = beta[0]
     beta_delta = (beta[1] - beta[0]) / (beta_sched[1] - beta_sched[0])
 
+    zdo_last = zdo_start
     for e in range(epochs):
         # Train
         model.train()
@@ -324,6 +337,25 @@ def train(
             opt.zero_grad()
 
             instances_seen += b
+
+            if zdo_dynamic:
+                if zdo_start < instances_seen < (zdo_range * (numzs-1)) + zdo_start:
+
+                    whichz = (instances_seen - zdo_start) // zdo_range
+                    for i in range(whichz+1):
+                        latent_dropouts[i] = 1. # This is lazy, but we
+
+                    assert 0 <= whichz < numzs - 1 , f'{instances_seen} {whichz} {numzs}'
+
+                    latent_dropouts[whichz + 1] += zdo_delta * (instances_seen - zdo_last)
+
+
+                    zdo_last = instances_seen
+                    # if random.random() < 0.01:
+                    # print(instances_seen, latent_dropouts)
+
+                if instances_seen > (zdo_range * (numzs-1)) + zdo_start:
+                    latent_dropouts = [1.] * numzs
 
             if beta_sched[0] < instances_seen < beta_sched[1]:
                 # curbeta = beta[0] + (beta[1] - beta[0]) * (instances_seen - beta_sched[0]) / (

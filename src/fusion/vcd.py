@@ -338,13 +338,11 @@ class VAE(nn.Module):
             channels = (8, 16, 32), # Number of channels at each level of the UNet
             num_blocks = 3,         # Number of res blocks per level
             mid_layers = 3,         # Number of linear layers in the middle block
-            latent_dropouts = None
         ):
         super().__init__()
 
         self.channels = channels
         self.num_blocks = num_blocks
-        self.latent_dropouts = latent_dropouts
 
         # Initial convolution up to the first res block
         self.initial = nn.Conv2d(3, channels[0], kernel_size=1, padding=0)
@@ -407,7 +405,7 @@ class VAE(nn.Module):
         # Final convolution down to the required number of output channels
         self.final = nn.Conv2d(channels[0], 3, kernel_size=1, padding=0)
 
-    def forward(self, x=None, num=None, mix=None):
+    def forward(self, x=None, num=None, mix=None, zdo=None):
         """
         :param x1: The input to the network. The image corrupted to t1.
         :param x0: the target of the network. The image corrupted to t0 (that is, to a lesser degree
@@ -420,8 +418,6 @@ class VAE(nn.Module):
         run_enc = x is not None
 
         # Encoder branch
-
-        zdo = None if self.latent_dropouts is None else list(self.latent_dropouts)
 
         if run_enc:
 
