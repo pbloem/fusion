@@ -462,7 +462,7 @@ class VAE(nn.Module):
             z = torch.randn(b, self.h, device=d())
 
         if zdo is not None:
-            z = F.dropout(z, p=zdo.pop()) # NB these are applied in eval as well.
+            z = F.dropout(z, p=zdo.pop(0)) # NB these are applied in eval as well.
 
         # Decoder branch
         x = self.midblock_dec(z) + z
@@ -491,7 +491,7 @@ class VAE(nn.Module):
                     z = torch.randn(size=(b, c, height, width), device=d())
 
                 if zdo is not None:
-                    z = F.dropout(z, p=zdo.pop())
+                    z = F.dropout(z, p=zdo.pop(0))
 
                 x = mod(torch.cat([x, z], dim=1))
             else:
