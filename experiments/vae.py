@@ -63,6 +63,8 @@ def train(
         augment_prob=0.5,
         augment_from=0, # Start augmenting after this many instances
         beta_temp=0.0,
+        beta_weights=None,
+        loss_type='dist',
 ):
 
     """
@@ -151,13 +153,29 @@ def train(
 
             output, kls = unet(x=abtch)
 
-            rc_loss = ((output - btch) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
+            if loss_type == 'dist':
+                rc_loss = ((output - btch) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
+            elif loss_type == 'bce':
+                rc_loss = F.binary_cross_entropy_with_logits(output, btch)
+            else:
+                raise
+
             # try continuous bernoulli?
 
             # kls = sum(kl.reshape(b, -1).sum(dim=-1) for kl in kls)
             kls = torch.cat([kl.reshape(b, -1).sum(dim=-1, keepdim=True) for kl in kls], dim=1)
-            weights = (kls.detach() * beta_temp).softmax(dim=-1) # -- weigh KLS proportional to relative magnitude, for
+
+            if beta_weights is None:
+                weights = (kls.detach() * beta_temp).softmax(dim=-1) # -- weigh KLS proportional to relative magnitude, for
                                                                  #    adversarial setting of beta balance
+            else:
+                weights = torch.tensor(beta_weights, dtype=torch.float, device=d()).unsqueeze(0).expand_as(kls)
+                weights = 10 ** weights
+                weights = weights.softmax(dim=-1)
+
+                if instances_seen == 0:
+                    print(weights[0, :])
+
             assert kls.size() == weights.size()
             kls = (kls * weights).sum(dim=-1)
 
@@ -203,11 +221,15 @@ def train(
 
             # 16 random samples
             ims = unet(num=16) # sample 16 images
+            if loss_type=='bce':
+                ims = ims.sigmoid()
             griddle(ims, path + f'samples-{e}-{n:05}.png')
 
             plot_at = set([2,5,10,50,100])
             for i in range(max(plot_at)):
                 ims, _ = unet(x=ims)
+                if loss_type == 'bce':
+                    ims = ims.sigmoid()
                 if i in plot_at:
                     griddle(ims, path + f'samples-{e}-{n:05}-it{i}.png')
 
@@ -220,7 +242,11 @@ def train(
                 augment_mix_ = augment_mix
 
             out, _ = unet(btch, mix=augment_mix_)
+            if loss_type=='bce':
+                out = out.sigmoid()
+
             ims = torch.cat([btch, out], dim=0)
+
             griddle(ims, path + f'augment-{e}-{n:05}.png', nrow=8)
 
     return {'last loss' : loss, 'ema loss': runloss}
