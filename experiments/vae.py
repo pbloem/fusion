@@ -351,8 +351,8 @@ def train(
 
 
                     zdo_last = instances_seen
-                    if random.random() < 0.001:
-                        print(instances_seen, latent_dropouts)
+                    # if random.random() < 0.001:
+                    print(instances_seen, latent_dropouts)
 
                 if instances_seen > (zdo_range * (numzs-1)) + zdo_start:
                     latent_dropouts = [1.] * numzs
