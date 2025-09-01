@@ -220,8 +220,8 @@ def train(
         # Simpler architecture(s) for debugging.
 
     if zdo_dynamic:
-        latent_dropouts = [0.0] * numzs
-        latent_dropouts[0] = 1.0
+        latent_dropouts = [1.0] * numzs
+        latent_dropouts[0] = 0.0
 
         zdo_delta = 1/zdo_range
 
@@ -349,8 +349,7 @@ def train(
                     assert 0 <= whichz < numzs - 1 , f'{instances_seen} {whichz} {numzs}'
 
                     step = zdo_delta * (instances_seen - zdo_last)
-                    latent_dropouts[whichz + 1] = min(1.0, latent_dropouts[whichz + 1] + step)
-
+                    latent_dropouts[whichz + 1] = max(0.0, latent_dropouts[whichz + 1] - step)
 
                     zdo_last = instances_seen
                     # if random.random() < 0.001:
