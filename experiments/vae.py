@@ -344,7 +344,7 @@ def train(
 
                     whichz = (instances_seen - zdo_start) // zdo_range
                     for i in range(whichz+1):
-                        latent_dropouts[i] = 1. # This is lazy, but we
+                        latent_dropouts[i] = 0. # This is lazy, but WE
 
                     assert 0 <= whichz < numzs - 1 , f'{instances_seen} {whichz} {numzs}'
 
@@ -356,7 +356,7 @@ def train(
                     print(instances_seen, latent_dropouts)
 
                 if instances_seen > (zdo_range * (numzs-1)) + zdo_start:
-                    latent_dropouts = [1.] * numzs
+                    latent_dropouts = [0.] * numzs
 
             if beta_sched[0] < instances_seen < beta_sched[1]:
                 # curbeta = beta[0] + (beta[1] - beta[0]) * (instances_seen - beta_sched[0]) / (
