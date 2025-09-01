@@ -36,6 +36,114 @@ import optuna
 
 GAMMA = 0.9
 
+def expand_as_right(x, y):
+    """
+    Expand x as y, but insert any extra dimensions at the back not the front.
+    :return:
+    """
+    while (len(x.size()) < len(y.size())):
+        x = x.unsqueeze(-1)
+    return x.expand_as(y)
+
+def kl_loss(zmean, zsig):
+    b, l = zmean.size()
+
+    kl = 0.5 * torch.sum(zsig.exp() - zsig + zmean.pow(2) - 1, dim=1)
+
+    assert kl.size() == (b,)
+
+    return kl
+
+def sample(zmean, zsig):
+    b, l = zmean.size()
+
+    # sample epsilon from a standard normal distribution
+    eps = torch.randn(b, l)
+
+    # transform eps to a sample from the given distribution
+    return zmean + eps * (zsig * 0.5).exp()
+
+
+class Reshape(nn.Module):
+    def __init__(self, shape):
+        super().__init__()
+        self.shape = shape
+
+    def forward(self, input):
+        return input.view( (input.size(0),) + self.shape) # keep the batch dimensions, reshape the rest
+
+class AltModel(nn.Module):
+
+    def __init__(self, channels=(12,32,128), latent_size=128, convs=True, hs=(512,256)):
+        super().__init__()
+
+        # - channel sizes
+        a, b, c = channels
+        self.latent_size = latent_size
+
+        if convs:
+            self.encoder = nn.Sequential(
+                nn.Conv2d(3, a, (3, 3), padding=1), nn.ReLU(),
+                nn.MaxPool2d((2, 2)),
+                nn.Conv2d(a, b, (3, 3), padding=1), nn.ReLU(),
+                nn.Conv2d(b, b, (3, 3), padding=1), nn.ReLU(),
+                nn.MaxPool2d((2, 2)),
+                nn.Conv2d(b, c, (3, 3), padding=1), nn.ReLU(),
+                nn.Conv2d(c, c, (3, 3), padding=1), nn.ReLU(),
+                nn.MaxPool2d((2, 2)),
+                nn.Flatten(),
+                nn.Linear(4 * 4 * c, 2 * latent_size)
+            )
+        else:
+            self.encoder = nn.Sequential(
+                Reshape((3 * 32 * 32,)),
+                nn.Linear(3 * 32 * 32, hs[0]), nn.ReLU(),
+                nn.Linear(hs[0], hs[1]), nn.ReLU(),
+                nn.Linear(hs[1], latent_size*2)
+            )
+
+        if convs:
+            self.decoder = nn.Sequential(
+                nn.Linear(latent_size, c * 4 * 4), nn.ReLU(),
+                Reshape((c, 4, 4)),
+                nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+                nn.ConvTranspose2d(c, b, (3, 3), padding=1), nn.ReLU(),
+                nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+                nn.ConvTranspose2d(b, a, (3, 3), padding=1), nn.ReLU(),
+                nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
+                nn.ConvTranspose2d(a, 3, (3, 3), padding=1)
+            )
+        else:
+            self.decoder = nn.Sequential(
+                nn.Linear(latent_size, hs[1]), nn.ReLU(),
+                nn.Linear(hs[1], hs[0]), nn.ReLU(),
+                nn.Linear(hs[0], 3* 32*32),
+                Reshape(shape=(3, 32, 32))
+            )
+
+
+    def forward(self, x=None, num=None, mix=None):
+
+        if x is None:
+            z = torch.randn(size=(num, self.latent_size), device=d())
+        else:
+            z = self.encoder(x)
+
+            zmean, zsig = z[:, :self.latent_size], z[:, self.latent_size:]
+            kl = kl_loss(zmean, zsig)
+
+            z = sample(zmean, zsig)
+
+            if mix is not None:
+                if type(mix) is torch.Tensor:
+                    emix = expand_as_right(mix, z)
+
+                z = emix * z + (1. - emix) * torch.randn_like(z)
+
+        y = self.decoder(z)
+
+        return y if x is None else (y, kl)
+
 def train(
         epochs=5,
         lr=3e-4,
@@ -66,6 +174,9 @@ def train(
         beta_weights=None,
         latent_dropouts=None,
         loss_type='dist',
+        altmodel=False,
+        alt_latent=128,
+        alt_convs=False,
 ):
 
     """
@@ -93,22 +204,27 @@ def train(
     dataloader, (h, w), n = data(data_name, data_dir, batch_size=bs, nw=num_workers, grayscale=grayscale, size=size)
     print(f'data loaded ({toc():.4} s)')
 
-    unet = fusion.VAE(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level,
+
+    if not altmodel:
+        model = fusion.VAE(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level,
                          mid_layers=3, latent_dropouts=latent_dropouts)
+    else:
+        model = AltModel(latent_size=alt_latent, convs=alt_convs)
+        # Simpler architecture(s) for debugging.
 
     if torch.cuda.is_available():
-        unet = unet.cuda()
+        model = model.cuda()
 
     if ema > -1:
-        unet = AveragedModel(unet,
+        model = AveragedModel(model,
                         avg_fn=get_ema_multi_avg_fn(ema),
                         use_buffers=True)
 
     if dp:
-        unet = torch.nn.DataParallel(unet)
+        model = torch.nn.DataParallel(model)
     print('Model created.')
 
-    opt = torch.optim.Adam(lr=lr, params=unet.parameters())
+    opt = torch.optim.Adam(lr=lr, params=model.parameters())
 
     path = f'./samples_vae/'
     Path(path).mkdir(parents=True, exist_ok=True)
@@ -121,7 +237,7 @@ def train(
 
     for e in range(epochs):
         # Train
-        unet.train()
+        model.train()
         for i, (btch, _) in (bar := tqdm.tqdm(enumerate(dataloader))):
             if i > limit:
                 break
@@ -140,7 +256,7 @@ def train(
                     else:
                         augment_mix_ = augment_mix
 
-                    augd, _ = unet(x=btch, mix=augment_mix_)
+                    augd, _ = model(x=btch, mix=augment_mix_)
 
                     sel = torch.rand(size=(b,), device=d()) < augment_prob
                     abtch[~ sel] = augd[~ sel] # augment with probability augment_prob
@@ -152,41 +268,44 @@ def train(
             else:
                 abtch = btch
 
-            output, kls = unet(x=abtch)
+            output, kls = model(x=abtch)
 
             if loss_type == 'dist':
                 rc_loss = ((output - btch) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
             elif loss_type == 'bce':
-                rc_loss = F.binary_cross_entropy_with_logits(output, btch)
+                rc_loss = F.binary_cross_entropy_with_logits(output, btch, reduction='none').reshape(b, -1).sum(dim=1)
             else:
                 raise
 
             # try continuous bernoulli?
 
             # kls = sum(kl.reshape(b, -1).sum(dim=-1) for kl in kls)
-            kls = torch.cat([kl.reshape(b, -1).sum(dim=-1, keepdim=True) for kl in kls], dim=1)
+            if not altmodel:
+                kls = torch.cat([kl.reshape(b, -1).sum(dim=-1, keepdim=True) for kl in kls], dim=1)
 
-            if beta_weights is None:
-                weights = (kls.detach() * beta_temp).softmax(dim=-1) # -- weigh KLS proportional to relative magnitude, for
-                                                                 #    adversarial setting of beta balance
+                if beta_weights is None:
+                    weights = (kls.detach() * beta_temp).softmax(dim=-1) # -- weigh KLS proportional to relative magnitude, for
+                                                                     #    adversarial setting of beta balance
+                else:
+                    weights = torch.tensor(beta_weights, dtype=torch.float, device=d()).unsqueeze(0).expand_as(kls)
+                    weights = 10 ** weights
+                    weights = weights.softmax(dim=-1)
+
+                    if instances_seen == 0:
+                        print(weights[0, :])
+
+                assert kls.size() == weights.size()
+                kls = (kls * weights).sum(dim=-1)
+
+                loss = (rc_loss + curbeta * kls).mean()
             else:
-                weights = torch.tensor(beta_weights, dtype=torch.float, device=d()).unsqueeze(0).expand_as(kls)
-                weights = 10 ** weights
-                weights = weights.softmax(dim=-1)
-
-                if instances_seen == 0:
-                    print(weights[0, :])
-
-            assert kls.size() == weights.size()
-            kls = (kls * weights).sum(dim=-1)
-
-            loss = (rc_loss + curbeta * kls).mean()
+                loss = (rc_loss + curbeta * kls).mean()
 
             loss.backward()
 
-            gn = gradient_norm(unet)
+            gn = gradient_norm(model)
             if gc > 0.0:
-                nn.utils.clip_grad_norm_(unet.parameters(), gc)
+                nn.utils.clip_grad_norm_(model.parameters(), gc)
 
             opt.step()
 
@@ -216,19 +335,19 @@ def train(
         ### Sample
 
         print('Generating sample, epoch', e)
-        unet.eval()
+        model.eval()
 
         with torch.no_grad():
 
             # 16 random samples
-            ims = unet(num=16) # sample 16 images
+            ims = model(num=16) # sample 16 images
             if loss_type=='bce':
                 ims = ims.sigmoid()
             griddle(ims, path + f'samples-{e}-{n:05}.png')
 
             plot_at = set([2,5,10,50,100])
             for i in range(max(plot_at)):
-                ims, _ = unet(x=ims)
+                ims, _ = model(x=ims)
                 if loss_type == 'bce':
                     ims = ims.sigmoid()
                 if i in plot_at:
@@ -242,7 +361,7 @@ def train(
             else:
                 augment_mix_ = augment_mix
 
-            out, _ = unet(btch, mix=augment_mix_)
+            out, _ = model(btch, mix=augment_mix_)
             if loss_type=='bce':
                 out = out.sigmoid()
 
