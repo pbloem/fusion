@@ -269,7 +269,7 @@ def train(
                     else:
                         augment_mix_ = augment_mix
 
-                    augd, _ = model(x=btch, mix=augment_mix_)
+                    augd, _ = model(x=btch, mix=augment_mix_, zdo=latent_dropouts)
 
                     sel = torch.rand(size=(b,), device=d()) < augment_prob
                     abtch[~ sel] = augd[~ sel] # augment with probability augment_prob
@@ -281,7 +281,7 @@ def train(
             else:
                 abtch = btch
 
-            output, kls = model(x=abtch)
+            output, kls = model(x=abtch, zdo=latent_dropouts)
 
             if loss_type == 'dist':
                 rc_loss = ((output - btch) ** 2.0).reshape(b, -1).sum(dim=1) # Simple loss
@@ -372,18 +372,18 @@ def train(
         with torch.no_grad():
 
             # 16 random samples
-            ims = model(num=16) # sample 16 images
+            ims = model(num=16, zdo=latent_dropouts) # sample 16 images
             if loss_type=='bce':
                 ims = ims.sigmoid()
             griddle(ims, path + f'samples-{e}-{n:05}.png')
 
-            plot_at = set([2,5,10,50,100])
-            for i in range(max(plot_at)):
-                ims, _ = model(x=ims)
-                if loss_type == 'bce':
-                    ims = ims.sigmoid()
-                if i in plot_at:
-                    griddle(ims, path + f'samples-{e}-{n:05}-it{i}.png')
+            # plot_at = set([2,5,10,50,100])
+            # for i in range(max(plot_at)):
+            #     ims, _ = model(x=ims)
+            #     if loss_type == 'bce':
+            #         ims = ims.sigmoid()
+            #     if i in plot_at:
+            #         griddle(ims, path + f'samples-{e}-{n:05}-it{i}.png')
 
             # 8 examples of augmentation
             btch = btch[torch.randperm(btch.size(0))][:8]
@@ -393,7 +393,7 @@ def train(
             else:
                 augment_mix_ = augment_mix
 
-            out, _ = model(btch, mix=augment_mix_)
+            out, _ = model(btch, mix=augment_mix_, zdo=latent_dropouts)
             if loss_type=='bce':
                 out = out.sigmoid()
 
