@@ -180,6 +180,7 @@ def train(
         altmodel=False,
         alt_latent=128,
         alt_convs=False,
+        mid_latent=128,
 ):
 
     """
@@ -210,7 +211,7 @@ def train(
 
     if not altmodel:
         model = fusion.VAE(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level,
-                         mid_layers=3)
+                         mid_layers=3, mid_latent=mid_latent)
 
         numzs = blocks_per_level * len(unet_channels) + 1 # nr of latent connections
     else:
@@ -347,7 +348,8 @@ def train(
 
                     assert 0 <= whichz < numzs - 1 , f'{instances_seen} {whichz} {numzs}'
 
-                    latent_dropouts[whichz + 1] += zdo_delta * (instances_seen - zdo_last)
+                    step = zdo_delta * (instances_seen - zdo_last)
+                    latent_dropouts[whichz + 1] = min(1.0, latent_dropouts[whichz + 1] + step)
 
 
                     zdo_last = instances_seen

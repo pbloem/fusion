@@ -338,11 +338,13 @@ class VAE(nn.Module):
             channels = (8, 16, 32), # Number of channels at each level of the UNet
             num_blocks = 3,         # Number of res blocks per level
             mid_layers = 3,         # Number of linear layers in the middle block
+            mid_latent = 128,       # dimensions in the middle latent
         ):
         super().__init__()
 
         self.channels = channels
         self.num_blocks = num_blocks
+        self.mid_latent = mid_latent
 
         # Initial convolution up to the first res block
         self.initial = nn.Conv2d(3, channels[0], kernel_size=1, padding=0)
@@ -381,7 +383,9 @@ class VAE(nn.Module):
         self.midblock_enc = nn.Sequential(*midblock_enc)
         self.midblock_dec = nn.Sequential(*midblock_dec)
 
-        self.toz = nn.Linear(h, h*2) # Project to the sample for the middle latent
+        # Project to and from the middle latent
+        self.toz = nn.Linear(h, mid_latent*2)
+        self.fromz = nn.Linear(mid_latent, h)
 
         rchannels = channels[::-1]
         self.decoder = nn.ModuleList()
@@ -443,7 +447,7 @@ class VAE(nn.Module):
             x = self.midblock_enc(x) + x
             z = self.toz(x)
 
-            c = z.size(1) // 2; assert c == self.h
+            c = z.size(1) // 2; assert c == self.mid_latent
 
             kl_losses.append(kl_loss(z[:, :c], z[:, c:]))
             z = sample(z[:, :c], z[:, c:])
@@ -462,7 +466,8 @@ class VAE(nn.Module):
             z = F.dropout(z, p=zdo.pop(0)) # NB these are applied in eval as well.
 
         # Decoder branch
-        x = self.midblock_dec(z) + z
+        x = self.fromz(z)
+        x = self.midblock_dec(x) + x
 
         x = x.reshape(b, -1, *self.mres)
 
