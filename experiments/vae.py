@@ -64,6 +64,7 @@ def train(
         augment_from=0, # Start augmenting after this many instances
         beta_temp=0.0,
         beta_weights=None,
+        latent_dropouts=None,
         loss_type='dist',
 ):
 
@@ -93,7 +94,7 @@ def train(
     print(f'data loaded ({toc():.4} s)')
 
     unet = fusion.VAE(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level,
-                         mid_layers=3)
+                         mid_layers=3, latent_dropouts=latent_dropouts)
 
     if torch.cuda.is_available():
         unet = unet.cuda()

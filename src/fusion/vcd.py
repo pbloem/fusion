@@ -338,11 +338,13 @@ class VAE(nn.Module):
             channels = (8, 16, 32), # Number of channels at each level of the UNet
             num_blocks = 3,         # Number of res blocks per level
             mid_layers = 3,         # Number of linear layers in the middle block
+            latent_dropouts = None
         ):
         super().__init__()
 
         self.channels = channels
         self.num_blocks = num_blocks
+        self.latent_dropouts = latent_dropouts
 
         # Initial convolution up to the first res block
         self.initial = nn.Conv2d(3, channels[0], kernel_size=1, padding=0)
@@ -418,6 +420,9 @@ class VAE(nn.Module):
         run_enc = x is not None
 
         # Encoder branch
+
+        zdo = None if self.latent_dropouts is None else list(self.latent_dropouts)
+
         if run_enc:
 
             b, c, h, w = x.size()
@@ -456,6 +461,8 @@ class VAE(nn.Module):
             b = num
             z = torch.randn(b, self.h, device=d())
 
+        if zdo is not None:
+            z = F.dropout(z, p=zdo.pop()) # NB these are applied in eval as well.
 
         # Decoder branch
         x = self.midblock_dec(z) + z
@@ -482,6 +489,9 @@ class VAE(nn.Module):
                         z = emix * z + (1. - emix) * torch.randn_like(z)
                 else: # sample
                     z = torch.randn(size=(b, c, height, width), device=d())
+
+                if zdo is not None:
+                    z = F.dropout(z, p=zdo.pop())
 
                 x = mod(torch.cat([x, z], dim=1))
             else:
