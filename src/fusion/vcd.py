@@ -455,6 +455,8 @@ class VAE(nn.Module):
             if mix is not None:
                 if type(mix) is torch.Tensor:
                     emix = expand_as_right(mix, z)
+                else:
+                    emix = mix
 
                 z = emix * z + (1. - emix) * torch.randn_like(z)
 
@@ -487,6 +489,8 @@ class VAE(nn.Module):
                     if mix is not None:
                         if type(mix) is torch.Tensor:
                             emix = expand_as_right(mix, z)
+                        else:
+                            emix = mix
 
                         z = emix * z + (1. - emix) * torch.randn_like(z)
                 else: # sample

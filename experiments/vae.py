@@ -181,6 +181,7 @@ def train(
         alt_latent=128,
         alt_convs=False,
         mid_latent=128,
+        drsample=True,
 ):
 
     """
@@ -385,6 +386,25 @@ def train(
             #         ims = ims.sigmoid()
             #     if i in plot_at:
             #         griddle(ims, path + f'samples-{e}-{n:05}-it{i}.png')
+
+            # Denoise/renoise algorithm
+            if drsample:
+                steps = 50
+                plot_at = set([ 1, 2, 3, 5, 10, 20, 30, 50])
+
+                ims = model(num=16, zdo=latent_dropouts)
+                if i in plot_at:
+                    griddle(ims, path + f'drsample-{e}-{n:05}-it{0}.png')
+
+                for i in range(1, steps+1):
+
+                    ims, _ = model(x=ims, mix=1 - i/steps, zdo=latent_dropouts)
+
+                    if loss_type == 'bce':
+                        ims = ims.sigmoid()
+
+                    if i in plot_at:
+                        griddle(ims, path + f'drsample-{e}-{n:05}-it{i}.png')
 
             # 8 examples of augmentation
             btch = btch[torch.randperm(btch.size(0))][:8]
