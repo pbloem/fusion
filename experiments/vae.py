@@ -181,7 +181,7 @@ def train(
         alt_latent=128,
         alt_convs=False,
         mid_latent=128,
-        drsample=True,
+        drsample=False,
 ):
 
     """
