@@ -398,7 +398,10 @@ def train(
 
                 for i in range(1, steps+1):
 
+                    # noising
                     ims, _ = model(x=ims, mix=1 - i/steps, zdo=latent_dropouts)
+                    # denoising
+                    ims, _ = model(x=ims, mix=1, zdo=latent_dropouts)
 
                     if loss_type == 'bce':
                         ims = ims.sigmoid()
