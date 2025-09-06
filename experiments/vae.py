@@ -374,7 +374,7 @@ def train(
         with torch.no_grad():
 
             # 16 random samples
-            ims = model(num=16, zdo=latent_dropouts) # sample 16 images
+            ims = model(num=min(16, bs*2), zdo=latent_dropouts) # sample 16 images
             if loss_type=='bce':
                 ims = ims.sigmoid()
             griddle(ims, path + f'samples-{e}-{n:05}.png')
@@ -410,7 +410,7 @@ def train(
                         griddle(ims, path + f'drsample-{e}-{n:05}-it{i}.png')
 
             # 8 examples of augmentation
-            btch = btch[torch.randperm(btch.size(0))][:8]
+            btch = btch[torch.randperm(btch.size(0))][:min(8, bs*2)]
 
             if augment_mix is None:
                 augment_mix_ = torch.rand(size=(8,), device=d())
