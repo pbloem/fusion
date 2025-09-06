@@ -428,6 +428,8 @@ def train(
             # reconstructions
             n = min(8, bs*2)
             btch = btch[torch.randperm(btch.size(0))][:n]
+            if torch.cuda.is_available():
+                btch = btch.cuda()
 
             out, _ = model(btch, zdo=latent_dropouts)
             if loss_type=='bce':
