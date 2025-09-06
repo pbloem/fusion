@@ -410,20 +410,32 @@ def train(
                         griddle(ims, path + f'drsample-{e}-{n:05}-it{i}.png')
 
             # 8 examples of augmentation
-            btch = btch[torch.randperm(btch.size(0))][:min(8, bs*2)]
+            # btch = btch[torch.randperm(btch.size(0))][:min(8, bs*2)]
+            #
+            # if augment_mix is None:
+            #     augment_mix_ = torch.rand(size=(8,), device=d())
+            # else:
+            #     augment_mix_ = augment_mix
+            #
+            # out, _ = model(btch, mix=augment_mix_, zdo=latent_dropouts)
+            # if loss_type=='bce':
+            #     out = out.sigmoid()
+            #
+            # ims = torch.cat([btch, out], dim=0)
+            #
+            # griddle(ims, path + f'augment-{e}-{n:05}.png', nrow=8)
 
-            if augment_mix is None:
-                augment_mix_ = torch.rand(size=(8,), device=d())
-            else:
-                augment_mix_ = augment_mix
+            # reconstructions
+            n = min(8, bs*2)
+            btch = btch[torch.randperm(btch.size(0))][:n]
 
-            out, _ = model(btch, mix=augment_mix_, zdo=latent_dropouts)
+            out, _ = model(btch, zdo=latent_dropouts)
             if loss_type=='bce':
                 out = out.sigmoid()
 
             ims = torch.cat([btch, out], dim=0)
 
-            griddle(ims, path + f'augment-{e}-{n:05}.png', nrow=8)
+            griddle(ims, path + f'augment-{e}-{n:05}.png', nrow=n)
 
     return {'last loss' : loss, 'ema loss': runloss}
 
