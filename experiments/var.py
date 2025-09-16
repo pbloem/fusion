@@ -174,16 +174,16 @@ def train(
                         t[:, 2] = t[:, 2] * (1 - t[:, 1]) + t[:, 1]
 
                 elif sched == 'discrete':
-                        max = dres ** 2
-                        t = torch.randint(low=2, high=max + 1, size=(b, 1), device=d())
+                        max_steps = dres ** 2
+                        t = torch.randint(low=2, high=max_steps + 1, size=(b, 1), device=d())
                         t = torch.cat([t-2, t-1, t], dim=1).to(torch.float)
-                        t = t / max
+                        t = t / max_steps
 
                 elif sched == 'fixed': # Only picks a single timestep halfway through the noising
-                        max = dres ** 2
-                        t = torch.full(fill_value=max/2, size=(b, 1), device=d())
+                        max_steps = dres ** 2
+                        t = torch.full(fill_value=max_steps/2, size=(b, 1), device=d())
                         t = torch.cat([t-2, t-1, t], dim=1).to(torch.float)
-                        t = t / max
+                        t = t / max_steps
                 else:
                     fc(sched, 'sched')
 
@@ -311,9 +311,9 @@ def train(
 
         with torch.no_grad():
 
-            max = dres ** 2
+            max_steps = dres ** 2
 
-            tzero = torch.tensor( [[(max/2 - 2)/max, (max/2 -1)/max, 0.5 ]] )
+            tzero = torch.tensor( [[(max_steps/2 - 2)/max_steps, (max_steps/2 -1)/max_steps, 0.5 ]] )
 
             t = torch.rand(size=(4, 3), device='cpu')
             t[:, 1:] **= p  # adjust to make nearby points more likely`
