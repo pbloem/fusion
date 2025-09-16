@@ -333,7 +333,7 @@ def train(
                     'beta': curbeta,
                 })
 
-            runloss += runloss * (1-GAMMA) + loss * GAMMA
+            runloss += runloss * (1-GAMMA) + loss.item() * GAMMA
 
             bar.set_postfix({'running loss' : loss.item()})
             opt.zero_grad()

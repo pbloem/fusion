@@ -233,7 +233,7 @@ class VCUNet(nn.Module):
             nn.Linear(time_emb * 2, time_emb),
         )
 
-    def forward(self, x1, t0, t1, x0=None, mix_latent=1.0):
+    def forward(self, x1, t0, t1, x0=None, mix=None, zdo=None):
         """
 
         :param x1: The input to the network. The image corrupted to t1.
@@ -248,6 +248,7 @@ class VCUNet(nn.Module):
 
         x = x1
         b, c, h, w = x.size()
+        zdo = None if zdo is None else list(zdo)
 
         assert t0.size() == (b, ) and t1.size() == (b, ), f'{b=}, {t0.size()=}, {t1.size()=}'
 
@@ -307,10 +308,18 @@ class VCUNet(nn.Module):
                     kl_losses.append(kl_loss(z[:, :c, :, :], z[:, c:, :, :]))
                     z = sample(z[:, :c, :, :], z[:, c:, :, :])
 
-                    if mix_latent < 1.0:
+                    if mix is not None:
+                        if type(mix) is torch.Tensor:
+                            mix_ = expand_as_right(mix, z)
+                        else:
+                            mix_ = mix
+
                         zp = torch.randn(size=(b, c, height, width), device=d()) # sample from the standard Gaussian
 
-                        z = z * mix_latent + zp * (1. - mix_latent)
+                        z = z * mix_ + zp * (1. - mix_)
+
+                if zdo is not None:
+                    z = F.dropout(z, p=zdo.pop(0))
 
                 x = mod(torch.cat([x, h, z], dim=1), time)
             else:

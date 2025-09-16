@@ -69,10 +69,13 @@ def train(
         out_type = 'difference', # 'difference' predict the difference vector between the input and the target, 'target' predict the target directly
         gc = 1.0,
         ema=-1,
-        kl_prep=False,
+        # kl_prep=False, # Divide out the channels for the KLs
         train_aug=False,
-        # beta_temp=0.0, # Only apply KL loss to the latent with the largest magnitude.
-        aug_mix=0.0, # How much of the latent for x1 to mix in in the augmentation (0=none, 1=pass through)
+        beta_temp=0.0, # Only apply KL loss to the latent with the largest magnitude.
+        zdo_dynamic=False,
+        zdo_range=180_000,  # over how many instances to change a given z-dropout from 0 to 1
+        zdo_start=180_000,  # After how many instances to start the z-dropout schedule.
+        aug_mix=True, # If true, the augmented inputs are made with a mixed latent code (convex mix of random and encoded z)
 ):
 
     """
@@ -106,6 +109,8 @@ def train(
     unet = fusion.VCUNet(res=(h, w), channels=unet_channels, num_blocks=blocks_per_level,
                          mid_layers=3, time_emb=time_emb)
 
+    numzs = blocks_per_level * len(unet_channels)  # nr of latent connections
+
     if torch.cuda.is_available():
         unet = unet.cuda()
 
@@ -113,6 +118,14 @@ def train(
         unet = AveragedModel(unet,
                         avg_fn=get_ema_multi_avg_fn(ema),
                         use_buffers=True)
+
+    if zdo_dynamic:
+        latent_dropouts = [1.0] * numzs
+        latent_dropouts[0] = 0.0
+
+        zdo_delta = 1/zdo_range
+    else:
+        latent_dropouts = None
 
     if dp:
         unet = torch.nn.DataParallel(unet)
@@ -129,6 +142,7 @@ def train(
     curbeta = beta[0]
     beta_delta = (beta[1] - beta[0]) / (beta_sched[1] - beta_sched[0])
 
+    zdo_last = zdo_start
     for e in range(epochs):
         # Train
         unet.train()
@@ -147,40 +161,44 @@ def train(
             # t = torch.rand(size=(b, 3), device=d())
             # torch.sort(t, dim=1)[0]
             # this is biased
+            with torch.no_grad():
+                if sched == 'uniform':
+                        # pick t0 uniform over (0, 1)
+                        t = torch.rand(size=(b, 3), device=d())
+                        t[:, 1:] **= p # adjust to make nearby points more likely`
 
-            if sched == 'uniform':
-                with torch.no_grad():
-                    # pick t0 uniform over (0, 1)
-                    t = torch.rand(size=(b, 3), device=d())
-                    t[:, 1:] **= p # adjust to make nearby points more likely`
+                        # t1 is uniform over the range between t0 and 1
+                        t[:, 1] = t[:, 1] * (1 - t[:, 0]) + t[:, 0]
 
-                    # t1 is uniform over the range between t0 and 1
-                    t[:, 1] = t[:, 1] * (1 - t[:, 0]) + t[:, 0]
+                        #t2 is uniform over the range between t1 and 1
+                        t[:, 2] = t[:, 2] * (1 - t[:, 1]) + t[:, 1]
 
-                    #t2 is uniform over the range between t1 and 1
-                    t[:, 2] = t[:, 2] * (1 - t[:, 1]) + t[:, 1]
+                elif sched == 'discrete':
+                        max = dres ** 2
+                        t = torch.randint(low=2, high=max + 1, size=(b, 1), device=d())
+                        t = torch.cat([t-2, t-1, t], dim=1).to(torch.float)
+                        t = t / max
 
-            elif sched == 'discrete':
-                with torch.no_grad():
-                    max = dres ** 2
-                    t = torch.randint(low=2, high=max + 1, size=(b, 1), device=d())
-                    t = torch.cat([t-2, t-1, t], dim=1).to(torch.float)
-                    t = t / max
-
-            elif sched == 'fixed': # Only picks a single timestep halfway through the noising
-                with torch.no_grad():
-                    max = dres ** 2
-                    t = torch.full(fill_value=max/2, size=(b, 1), device=d())
-                    t = torch.cat([t-2, t-1, t], dim=1).to(torch.float)
-                    t = t / max
-            else:
-                fc(sched, 'sched')
+                elif sched == 'fixed': # Only picks a single timestep halfway through the noising
+                        max = dres ** 2
+                        t = torch.full(fill_value=max/2, size=(b, 1), device=d())
+                        t = torch.cat([t-2, t-1, t], dim=1).to(torch.float)
+                        t = t / max
+                else:
+                    fc(sched, 'sched')
 
             xs = [batch(btch, op=tile, t=t[:, i], nh=dres, nw=dres, fv=fv) for i in range(3)]
 
             # Sample one step to augment the data (t2 -> t1)
             with contextlib.nullcontext() if train_aug else torch.no_grad():
-                out, _ = unet(x1=xs[2], x0=xs[1], t1=t[:, 2], t0=t[:, 1], mix_latent=aug_mix) #.sigmoid()
+
+                assert type(aug_mix) == bool
+                if aug_mix:
+                    aug_mix_ = torch.rand(size=(b,), device=d()) # Sample a random mix level for each instance
+                else:
+                    aug_mix_ = None
+
+                out, _ = unet(x1=xs[2], x0=xs[1], t1=t[:, 2], t0=t[:, 1], mix=aug_mix_, zdo=latent_dropouts) #.sigmoid()
 
                 if out_type == 'difference':
                     x1p = xs[2] + out
@@ -190,10 +208,11 @@ def train(
                     fc(out_type, 'out_type')
 
                 sel = torch.rand(size=(b,), device=d()) < sample_mix
-                # idx = (~ sel).nonzero()
+                # -- sel indicates the part of the batch that _is_ augmented
+
                 x1p[~ sel] = xs[1][~ sel] # reset a proportion to the non-augmented batch
 
-            # Apply dropout to x1p
+            # Apply dropout and or noise to x1p
             if type(cond_do) == float and cond_do > 0.0:
                 x1p = F.dropout(x1p, p=cond_do)
             if cond_do == 'random':
@@ -202,11 +221,10 @@ def train(
                 x1p += torch.randn_like(x1p) * cond_noise
 
             # Predict x0 from x1p (t1 -> t0)
-            output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0])
-            # output = output.sigmoid()
+            output, kls = unet(x1=x1p, x0=xs[0], t1=t[:, 1], t0=t[:, 0], zdo=latent_dropouts)
 
-            if kl_prep:
-                kls = [kl / (kl.numel() // b) for kl in kls]
+            # if kl_prep:
+            #     kls = [kl / (kl.numel() // b) for kl in kls]
 
             if wandb:
                 wandb.log({ f'kls/kl-i{i}-elem{kl.numel()//b}' : kl.sum() for i, kl in enumerate(kls) })
@@ -225,7 +243,13 @@ def train(
             #                                                      #    adversarial setting of beta balance
             # kls = kls * weights
 
-            kls = sum(kl.reshape(b, -1).sum(dim=-1) for kl in kls)
+
+            kls = torch.cat([kl.reshape(b, -1).sum(dim=-1, keepdim=True) for kl in kls], dim=1)
+            weights = (kls.detach() * beta_temp).softmax(dim=-1)  # -- weigh KLS proportional to relative magnitude, for
+                                                                  #    adversarial setting of beta balance.
+                                                                  #    temp 0.0 is uniform weighting
+            kls = (kls * weights).sum(dim=-1)
+            # kls = sum(kl.reshape(b, -1).sum(dim=-1) for kl in kls)
 
             loss = (rc_loss + curbeta * kls).mean()
 
@@ -246,12 +270,32 @@ def train(
                     'beta': curbeta,
                 })
 
-            runloss += runloss * (1-GAMMA) + loss * GAMMA
+            runloss += runloss * (1-GAMMA) + loss.item() * GAMMA
 
             bar.set_postfix({'running loss' : loss.item()})
             opt.zero_grad()
 
             instances_seen += b
+
+            if zdo_dynamic:
+                if zdo_start < instances_seen < (zdo_range * (numzs-1)) + zdo_start:
+
+                    whichz = (instances_seen - zdo_start) // zdo_range
+                    for i in range(whichz+1):
+                        latent_dropouts[i] = 0. # This is lazy, but WE
+
+                    assert 0 <= whichz < numzs - 1 , f'{instances_seen} {whichz} {numzs}'
+
+                    step = zdo_delta * (instances_seen - zdo_last)
+                    latent_dropouts[whichz + 1] = max(0.0, latent_dropouts[whichz + 1] - step)
+
+                    zdo_last = instances_seen
+                    # if random.random() < 0.001:
+                    print(instances_seen, latent_dropouts)
+
+                if instances_seen > (zdo_range * (numzs-1)) + zdo_start:
+                    latent_dropouts = [0.] * numzs
+
 
             if beta_sched[0] < instances_seen < beta_sched[1]:
                 # curbeta = beta[0] + (beta[1] - beta[0]) * (instances_seen - beta_sched[0]) / (
@@ -259,7 +303,6 @@ def train(
 
                 curbeta = beta[0] + (beta[1] - beta[0]) * \
                     ((instances_seen - beta_sched[0]) / (beta_sched[1] - beta_sched[0]) ) ** beta_p
-
 
         ### Sample
 
@@ -296,7 +339,7 @@ def train(
                 plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
                 plotim(xs[2][0], axs[2]); axs[2].set_title('x2')
 
-                out, _ = unet(x1=xs[2], x0=xs[1], t1=ts[2], t0=ts[1], mix_latent=aug_mix) # .sigmoid()
+                out, _ = unet(x1=xs[2], x0=xs[1], t1=ts[2], t0=ts[1], mix=aug_mix) # .sigmoid()
 
                 if out_type == 'difference':
                     x1p = xs[2] + out
