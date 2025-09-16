@@ -1,11 +1,14 @@
 import torch, math
 from .tools import d
 
+from torch import fft
+import torch.nn.functional as F
+
 """
 Degradation operators
 """
 
-def batch(ims, op, t=None, *args, **kwargs):
+def batch(ims, op, t=None, inplace=None, *args, **kwargs):
     """
     Apply a degradation op to a batch.
 
@@ -14,6 +17,14 @@ def batch(ims, op, t=None, *args, **kwargs):
     :param t: The degradation levels. If None, each instance gets a randomly chosen level
     :return:
     """
+
+    if inplace is None:
+        assert op in [tile, fourier]
+
+        if op in [tile]:
+            inplace = True
+        elif op in [fourier]:
+            inplace = False
 
     with torch.no_grad():
 
@@ -25,11 +36,14 @@ def batch(ims, op, t=None, *args, **kwargs):
 
         res = []
         for i in range(b):
-            op(ims[i:i+1], t[i].item(), *args, **kwargs)
+
+            r = op(ims[i:i+1], t[i].item(), *args, **kwargs)
+            if not inplace:
+                ims[i:i+1] = r
 
         return ims
 
-def tile(im:torch.Tensor, t:float, nh:int , nw:int, fv=0):
+def tile(im:torch.Tensor, t:float, nh:int , nw:int, fv=0, *args, **kwargs):
     """
     Fills the image from left to right and top to bottom with black squares.
 
@@ -55,3 +69,50 @@ def tile(im:torch.Tensor, t:float, nh:int , nw:int, fv=0):
 
     im[:, :, :rows*ph, :] = fv
     im[:, :, rows*ph:(rows+1)*ph, :rem*ph] = fv
+
+def fourier(im:torch.Tensor, t:float, aa=32, gamma=1/3, *args, **kwargs):
+    """
+    Degrades an image by applying a 2D FFT, removing the `t` lowest proportion of frequencies
+    and inverting the fft again. 
+    
+    :param im: 
+    :param t:
+    :param gamma: t <- t ** gamma.
+    :param scale: remap t's
+    :return: 
+    """
+    b, c, h, w = im.size()
+
+    im_fftd = fft.fft2(im)
+
+    crds = coords(h * aa, w *aa)
+    dists = (crds[:, 0, :, :] ** 2 + crds[:, 1, :, :] ** 2).sqrt()
+    thresh = dists.max() * (t ** gamma)
+    mask = 1.0 - (dists < thresh).to(torch.float)[:,None,:,:]
+    mask = F.interpolate(mask, size=(h, w), mode='area')
+
+    im_masked = im_fftd * mask.expand_as(im_fftd)
+
+    return fft.ifft2(im_masked).real
+
+def coords(h, w):
+    """
+    Generates a pixel grid of coordinate representations for the given width and height (in the style of the coordconv).
+    The center pixel is at 0.0 (for odd resolutins)
+
+    This is a cheap alternative to the more involved, but more powerful, coordinate embedding or encoding.
+
+    :param h:
+    :param w:
+    :return:
+    """
+    xs = torch.arange(-h//2, h//2, device=d())[None, None, :, None] + 0.5
+    ys = torch.arange(-w//2, w//2, device=d())[None, None, None, :] + 0.5
+    xs, ys = xs.expand(1, 1, h, w), ys.expand(1, 1, h, w)
+    res = torch.cat((xs, ys), dim=1)
+
+    assert res.size() == (1, 2, h, w)
+
+    return res
+
+

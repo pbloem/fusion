@@ -1,5 +1,5 @@
 import fusion
-from fusion import tile, batch
+from fusion import tile, batch, fourier
 from fusion.tools import here, d, fc, gradient_norm, tic, toc, prod, data
 
 import fire, math, os, contextlib
@@ -44,6 +44,7 @@ def train(
         limit=float('inf'), # limits the number of batches per epoch,
         data_name='mnist',
         data_dir='./data',
+        op='tile',
         size=(32, 32),
         num_workers=2,
         grayscale=False,
@@ -136,6 +137,12 @@ def train(
     path = f'./samples_vcd/{id}/'
     Path(path).mkdir(parents=True, exist_ok=True)
 
+    if op == 'tile':
+        op = tile
+    elif op == 'fourier':
+        op = fourier
+    else: raise
+
     runloss = 0.0
     instances_seen = 0
 
@@ -187,7 +194,7 @@ def train(
                 else:
                     fc(sched, 'sched')
 
-            xs = [batch(btch, op=tile, t=t[:, i], nh=dres, nw=dres, fv=fv) for i in range(3)]
+            xs = [batch(btch, op=op, t=t[:, i], nh=dres, nw=dres, fv=fv) for i in range(3)]
 
             # Sample one step to augment the data (t2 -> t1)
             with contextlib.nullcontext() if train_aug else torch.no_grad():
@@ -333,7 +340,7 @@ def train(
                 # p = max//2
                 # ts = (p-1)/max, p/max, (p+1)/max
                 ts = [torch.tensor(t.item(), device=d()).expand((btch.size(0),)) for t in ts]
-                xs = [batch(btch.to(d()), op=tile, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
+                xs = [batch(btch.to(d()), op=op, t=t, nh=dres, nw=dres, fv=fv) for t in ts]
 
                 plotim(xs[0][0], axs[0]); axs[0].set_title('x0')
                 plotim(xs[1][0], axs[1]); axs[1].set_title('x1')
@@ -390,7 +397,7 @@ def train(
 
                 # plot a bunch of samples
                 ims = torch.zeros(size=(sample_bs, c, h, w), device=d())
-                ims = batch(ims, op=tile, t=1.0, nh=dres, nw=dres, fv=fv)
+                ims = batch(ims, op=op, t=1.0, nh=dres, nw=dres, fv=fv)
 
                 steps = dres**2
                 delta = 1.0 / steps
