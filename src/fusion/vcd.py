@@ -84,13 +84,20 @@ class ResBlock(nn.Module):
             return res, self.vout(res)
         return res
 
+class NullOp(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return x
 
 class ResBlockNT(nn.Module):
     """
     Residual block without time embedding
     """
 
-    def __init__(self, in_channels, out_channels, dropout=0.1, coord_hidden=256, vout=False):
+    def __init__(self, in_channels, out_channels, dropout=0.1, coord_hidden=256, vout=False, nonlin=nn.ReLU):
         """
         :param channels:
         :param dropout:
@@ -106,7 +113,7 @@ class ResBlockNT(nn.Module):
 
         self.convolution = nn.Sequential(
             nn.GroupNorm(1, in_channels), # Equivalent to LayerNorm, but over the channel dimension of an image
-            nn.ReLU(),
+            nonlin(),
             nn.Dropout(dropout),
             nn.Conv2d(in_channels, out_channels, 3, padding=1)
         )
@@ -364,7 +371,7 @@ class VAE(nn.Module):
         for i, ch in enumerate(channels):
             # Add a sequence of ResBlocks
 
-            self.encoder.extend(ResBlockNT(in_channels=ch, out_channels=ch, vout=True)
+            self.encoder.extend(ResBlockNT(in_channels=ch, out_channels=ch, vout=True, nonlin=nn.ReLU if i > 0 else NullOp)
                                   for _ in range(num_blocks))
 
             # Downsample
@@ -406,7 +413,7 @@ class VAE(nn.Module):
             )
 
             # Add a sequence of ResBlocks
-            self.decoder.extend(ResBlockNT(in_channels=ch * 2, out_channels=ch)
+            self.decoder.extend(ResBlockNT(in_channels=ch * 2, out_channels=ch, nonlin=nn.ReLU if i < len(rchannels) - 1  else NullOp)
                                 for _ in range(num_blocks))
             # -- In channels: `ch` from the previous block, `ch` from the
             #    vc connection
