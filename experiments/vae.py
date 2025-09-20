@@ -368,7 +368,7 @@ def train(
                 #             beta_sched[1] - beta_sched[0])
 
                 curbeta = beta[0] + (beta[1] - beta[0]) * \
-                    ((instances_seen - beta_sched[0]) / (beta_sched[1] - beta_sched[0]) ) ** beta_p
+                    ((instances_seen - beta_sched[0]) / (beta_sched[1] - beta_sched[0]) )
             elif beta_sched[1] < instances_seen < beta_sched[2]: # constant (high)
                 curbeta = beta[1]
             elif instances_seen > beta_sched[2]: # cooldown
