@@ -160,8 +160,7 @@ def train(
         sample_bs=16,
         plot_every=1,
         beta=(0.0,1.0),
-        beta_sched=(0, 100),
-        beta_p=1.0,  # exponent of the beta schedule (> 1 smooths out the initial values)
+        beta_sched=(0, 100, 200, 300), # linear from beta[0] to beta[1] and then exponential decay from beta_sched[2] (beta_sched[3] is halving time in instances)
         name='vae',
         debug=False,
         gc=1.0,
@@ -248,6 +247,9 @@ def train(
 
     curbeta = beta[0]
     beta_delta = (beta[1] - beta[0]) / (beta_sched[1] - beta_sched[0])
+    beta_cdr = 0.5 ** (1/beta_sched[2]) # beta cooldown rate
+    # -- We multiply beta by this every instance so that the beta decay halves
+    #    every `beta_sched[2]` instances
 
     zdo_last = zdo_start
     for e in range(epochs):
@@ -359,12 +361,19 @@ def train(
                 if instances_seen > (zdo_range * (numzs-1)) + zdo_start:
                     latent_dropouts = [0.] * numzs
 
-            if beta_sched[0] < instances_seen < beta_sched[1]:
+            if instances_seen < beta_sched[0]: # constant (low)
+                curbeta = beta[0]
+            elif beta_sched[0] < instances_seen < beta_sched[1]: # warmup
                 # curbeta = beta[0] + (beta[1] - beta[0]) * (instances_seen - beta_sched[0]) / (
                 #             beta_sched[1] - beta_sched[0])
 
                 curbeta = beta[0] + (beta[1] - beta[0]) * \
                     ((instances_seen - beta_sched[0]) / (beta_sched[1] - beta_sched[0]) ) ** beta_p
+            elif beta_sched[1] < instances_seen < beta_sched[2]: # constant (high)
+                curbeta = beta[1]
+            elif instances_seen > beta_sched[2]: # cooldown
+                since_cd = instances_seen - beta_sched[2] # instances seen since cooldown start
+                curbeta = beta[1] * beta_cdr ** since_cd  # apply cdr `since_wu` times
 
         ### Sample
 
