@@ -127,8 +127,6 @@ class ResBlockNT(nn.Module):
 
         # variational output
         self.vout = nn.Conv2d(out_channels, 2 * out_channels, kernel_size=1, padding=0) if vout else None
-        # [-- We give the vout just one output channel at the current resolution (or rather, a mean and var, so
-        #    two channels, but they represent a dist on one).]
 
     def forward(self, x):
         """
@@ -146,8 +144,7 @@ class ResBlockNT(nn.Module):
         crds = self.embed_coords(crds)
 
         # Apply the convolution and the residual connection
-        res = self.resconv(x)
-        res = self.convolution(x + crds) + res
+        res = self.convolution(x + crds) + self.resconv(x)
 
         if self.vout is not None:
             return res, self.vout(res)
